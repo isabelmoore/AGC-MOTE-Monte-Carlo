@@ -1,6 +1,6 @@
 file(REMOVE_RECURSE
-  "/home/wizard/sharf/devel/share/roseus/ros/vectornav/manifest.l"
-  "/home/wizard/sharf/devel/share/roseus/ros/vectornav/msg/Ins.l"
+  "/home/wizard/AGC-MOTE-Monte-Carlo/devel/share/roseus/ros/vectornav/manifest.l"
+  "/home/wizard/AGC-MOTE-Monte-Carlo/devel/share/roseus/ros/vectornav/msg/Ins.l"
   "CMakeFiles/vectornav_generate_messages_eus"
 )
 

@@ -1,7 +1,6 @@
 # CMake generated Testfile for 
-# Source directory: /home/wizard/sharf/src/vectornav
-# Build directory: /home/wizard/sharf/build/vectornav
+# Source directory: /home/wizard/AGC-MOTE-Monte-Carlo/src/vectornav
+# Build directory: /home/wizard/AGC-MOTE-Monte-Carlo/build/vectornav
 # 
 # This file includes the relevant testing commands required for 
 # testing this directory and lists subdirectories to be tested as well.
-subdirs("vnproglib-1.2.0.0/cpp")

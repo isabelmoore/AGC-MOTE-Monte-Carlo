@@ -1,6 +1,6 @@
 file(REMOVE_RECURSE
-  "/home/wizard/sharf/devel/lib/python3/dist-packages/vectornav/msg/_Ins.py"
-  "/home/wizard/sharf/devel/lib/python3/dist-packages/vectornav/msg/__init__.py"
+  "/home/wizard/AGC-MOTE-Monte-Carlo/devel/lib/python3.9/site-packages/vectornav/msg/_Ins.py"
+  "/home/wizard/AGC-MOTE-Monte-Carlo/devel/lib/python3.9/site-packages/vectornav/msg/__init__.py"
   "CMakeFiles/vectornav_generate_messages_py"
 )
 

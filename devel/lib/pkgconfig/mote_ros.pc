@@ -1,8 +1,8 @@
-prefix=/home/wizard/sharf/devel
+prefix=/home/wizard/AGC-MOTE-Monte-Carlo/devel
 
 Name: mote_ros
 Description: Description of mote_ros
 Version: 0.0.0
-Cflags: -I/home/wizard/sharf/devel/include
+Cflags: -I/home/wizard/AGC-MOTE-Monte-Carlo/devel/include
 Libs: -L${prefix}/lib 
 Requires: geometry_msgs roscpp rospy sensor_msgs std_msgs message_runtime

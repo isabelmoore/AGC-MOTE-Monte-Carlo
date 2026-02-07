@@ -1,0 +1,13 @@
+name: mote_ros
+channels:
+  - conda-forge
+  - robostack-staging
+  - defaults
+dependencies:
+  - python=3.9
+  - numpy
+  - matplotlib
+  - pandas
+  - scipy
+  - ros-noetic-desktop
+  - catkin_tools

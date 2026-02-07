@@ -1,8 +1,8 @@
-prefix=/home/wizard/sharf/install
+prefix=/home/wizard/AGC-MOTE-Monte-Carlo/install
 
 Name: vectornav
 Description: Description of vectornav
-Version: 2.0.0
+Version: 0.0.0
 Cflags: -I${prefix}/include
 Libs: -L${prefix}/lib 
-Requires: roscpp sensor_msgs
+Requires: message_runtime std_msgs

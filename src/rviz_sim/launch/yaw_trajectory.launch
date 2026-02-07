@@ -1,4 +1,0 @@
-<launch>
-  <!-- Launch RViz with a default configuration -->
-  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rviz_sim)/rviz/default.rviz" />
-</launch>

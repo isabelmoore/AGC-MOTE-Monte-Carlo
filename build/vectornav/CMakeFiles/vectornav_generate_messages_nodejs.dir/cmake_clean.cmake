@@ -1,5 +1,5 @@
 file(REMOVE_RECURSE
-  "/home/wizard/sharf/devel/share/gennodejs/ros/vectornav/msg/Ins.js"
+  "/home/wizard/AGC-MOTE-Monte-Carlo/devel/share/gennodejs/ros/vectornav/msg/Ins.js"
   "CMakeFiles/vectornav_generate_messages_nodejs"
 )
 

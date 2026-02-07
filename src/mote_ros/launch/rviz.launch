@@ -1,0 +1,5 @@
+<launch>
+  <param name="use_sim_time" value="true"/>
+  <param name="robot_description" textfile="$(find mote_ros)/urdf/vehicle.urdf"/>
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find mote_ros)/rviz/visualization.rviz" output="screen"/>
+</launch>

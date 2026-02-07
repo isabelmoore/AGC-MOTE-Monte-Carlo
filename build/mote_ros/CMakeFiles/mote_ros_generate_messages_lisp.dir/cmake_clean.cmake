@@ -1,7 +1,7 @@
 file(REMOVE_RECURSE
-  "/home/wizard/sharf/devel/share/common-lisp/ros/mote_ros/msg/Pos.lisp"
-  "/home/wizard/sharf/devel/share/common-lisp/ros/mote_ros/msg/State.lisp"
-  "/home/wizard/sharf/devel/share/common-lisp/ros/mote_ros/msg/Yaw.lisp"
+  "/home/wizard/AGC-MOTE-Monte-Carlo/devel/share/common-lisp/ros/mote_ros/msg/Pos.lisp"
+  "/home/wizard/AGC-MOTE-Monte-Carlo/devel/share/common-lisp/ros/mote_ros/msg/State.lisp"
+  "/home/wizard/AGC-MOTE-Monte-Carlo/devel/share/common-lisp/ros/mote_ros/msg/Yaw.lisp"
   "CMakeFiles/mote_ros_generate_messages_lisp"
 )
 

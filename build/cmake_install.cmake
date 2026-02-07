@@ -1,8 +1,8 @@
-# Install script for directory: /home/wizard/sharf/src
+# Install script for directory: /home/wizard/AGC-MOTE-Monte-Carlo/src
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
-  set(CMAKE_INSTALL_PREFIX "/home/wizard/sharf/install")
+  set(CMAKE_INSTALL_PREFIX "/home/wizard/AGC-MOTE-Monte-Carlo/install")
 endif()
 string(REGEX REPLACE "/$" "" CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 
@@ -37,7 +37,12 @@ if(NOT DEFINED CMAKE_CROSSCOMPILING)
   set(CMAKE_CROSSCOMPILING "FALSE")
 endif()
 
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
+# Set default install directory permissions.
+if(NOT DEFINED CMAKE_OBJDUMP)
+  set(CMAKE_OBJDUMP "/usr/bin/objdump")
+endif()
+
+if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
   
       if (NOT EXISTS "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}")
         file(MAKE_DIRECTORY "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}")
@@ -47,93 +52,92 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
       endif()
 endif()
 
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
+if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
   list(APPEND CMAKE_ABSOLUTE_DESTINATION_FILES
-   "/home/wizard/sharf/install/_setup_util.py")
+   "/home/wizard/AGC-MOTE-Monte-Carlo/install/_setup_util.py")
   if(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION)
     message(WARNING "ABSOLUTE path INSTALL DESTINATION : ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
   if(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION)
     message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
-file(INSTALL DESTINATION "/home/wizard/sharf/install" TYPE PROGRAM FILES "/home/wizard/sharf/build/catkin_generated/installspace/_setup_util.py")
+  file(INSTALL DESTINATION "/home/wizard/AGC-MOTE-Monte-Carlo/install" TYPE PROGRAM FILES "/home/wizard/AGC-MOTE-Monte-Carlo/build/catkin_generated/installspace/_setup_util.py")
 endif()
 
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
+if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
   list(APPEND CMAKE_ABSOLUTE_DESTINATION_FILES
-   "/home/wizard/sharf/install/env.sh")
+   "/home/wizard/AGC-MOTE-Monte-Carlo/install/env.sh")
   if(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION)
     message(WARNING "ABSOLUTE path INSTALL DESTINATION : ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
   if(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION)
     message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
-file(INSTALL DESTINATION "/home/wizard/sharf/install" TYPE PROGRAM FILES "/home/wizard/sharf/build/catkin_generated/installspace/env.sh")
+  file(INSTALL DESTINATION "/home/wizard/AGC-MOTE-Monte-Carlo/install" TYPE PROGRAM FILES "/home/wizard/AGC-MOTE-Monte-Carlo/build/catkin_generated/installspace/env.sh")
 endif()
 
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
+if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
   list(APPEND CMAKE_ABSOLUTE_DESTINATION_FILES
-   "/home/wizard/sharf/install/setup.bash;/home/wizard/sharf/install/local_setup.bash")
+   "/home/wizard/AGC-MOTE-Monte-Carlo/install/setup.bash;/home/wizard/AGC-MOTE-Monte-Carlo/install/local_setup.bash")
   if(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION)
     message(WARNING "ABSOLUTE path INSTALL DESTINATION : ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
   if(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION)
     message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
-file(INSTALL DESTINATION "/home/wizard/sharf/install" TYPE FILE FILES
-    "/home/wizard/sharf/build/catkin_generated/installspace/setup.bash"
-    "/home/wizard/sharf/build/catkin_generated/installspace/local_setup.bash"
+  file(INSTALL DESTINATION "/home/wizard/AGC-MOTE-Monte-Carlo/install" TYPE FILE FILES
+    "/home/wizard/AGC-MOTE-Monte-Carlo/build/catkin_generated/installspace/setup.bash"
+    "/home/wizard/AGC-MOTE-Monte-Carlo/build/catkin_generated/installspace/local_setup.bash"
     )
 endif()
 
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
+if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
   list(APPEND CMAKE_ABSOLUTE_DESTINATION_FILES
-   "/home/wizard/sharf/install/setup.sh;/home/wizard/sharf/install/local_setup.sh")
+   "/home/wizard/AGC-MOTE-Monte-Carlo/install/setup.sh;/home/wizard/AGC-MOTE-Monte-Carlo/install/local_setup.sh")
   if(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION)
     message(WARNING "ABSOLUTE path INSTALL DESTINATION : ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
   if(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION)
     message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
-file(INSTALL DESTINATION "/home/wizard/sharf/install" TYPE FILE FILES
-    "/home/wizard/sharf/build/catkin_generated/installspace/setup.sh"
-    "/home/wizard/sharf/build/catkin_generated/installspace/local_setup.sh"
+  file(INSTALL DESTINATION "/home/wizard/AGC-MOTE-Monte-Carlo/install" TYPE FILE FILES
+    "/home/wizard/AGC-MOTE-Monte-Carlo/build/catkin_generated/installspace/setup.sh"
+    "/home/wizard/AGC-MOTE-Monte-Carlo/build/catkin_generated/installspace/local_setup.sh"
     )
 endif()
 
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
+if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
   list(APPEND CMAKE_ABSOLUTE_DESTINATION_FILES
-   "/home/wizard/sharf/install/setup.zsh;/home/wizard/sharf/install/local_setup.zsh")
+   "/home/wizard/AGC-MOTE-Monte-Carlo/install/setup.zsh;/home/wizard/AGC-MOTE-Monte-Carlo/install/local_setup.zsh")
   if(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION)
     message(WARNING "ABSOLUTE path INSTALL DESTINATION : ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
   if(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION)
     message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
-file(INSTALL DESTINATION "/home/wizard/sharf/install" TYPE FILE FILES
-    "/home/wizard/sharf/build/catkin_generated/installspace/setup.zsh"
-    "/home/wizard/sharf/build/catkin_generated/installspace/local_setup.zsh"
+  file(INSTALL DESTINATION "/home/wizard/AGC-MOTE-Monte-Carlo/install" TYPE FILE FILES
+    "/home/wizard/AGC-MOTE-Monte-Carlo/build/catkin_generated/installspace/setup.zsh"
+    "/home/wizard/AGC-MOTE-Monte-Carlo/build/catkin_generated/installspace/local_setup.zsh"
     )
 endif()
 
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
+if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
   list(APPEND CMAKE_ABSOLUTE_DESTINATION_FILES
-   "/home/wizard/sharf/install/.rosinstall")
+   "/home/wizard/AGC-MOTE-Monte-Carlo/install/.rosinstall")
   if(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION)
     message(WARNING "ABSOLUTE path INSTALL DESTINATION : ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
   if(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION)
     message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
-file(INSTALL DESTINATION "/home/wizard/sharf/install" TYPE FILE FILES "/home/wizard/sharf/build/catkin_generated/installspace/.rosinstall")
+  file(INSTALL DESTINATION "/home/wizard/AGC-MOTE-Monte-Carlo/install" TYPE FILE FILES "/home/wizard/AGC-MOTE-Monte-Carlo/build/catkin_generated/installspace/.rosinstall")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
-  include("/home/wizard/sharf/build/gtest/cmake_install.cmake")
-  include("/home/wizard/sharf/build/mote_ros/cmake_install.cmake")
-  include("/home/wizard/sharf/build/rviz_sim/cmake_install.cmake")
-  include("/home/wizard/sharf/build/vectornav/cmake_install.cmake")
+  include("/home/wizard/AGC-MOTE-Monte-Carlo/build/vectornav/cmake_install.cmake")
+  include("/home/wizard/AGC-MOTE-Monte-Carlo/build/mote_ros/cmake_install.cmake")
+  include("/home/wizard/AGC-MOTE-Monte-Carlo/build/rviz_sim/cmake_install.cmake")
 
 endif()
 
@@ -145,5 +149,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "/home/wizard/sharf/build/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "/home/wizard/AGC-MOTE-Monte-Carlo/build/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")

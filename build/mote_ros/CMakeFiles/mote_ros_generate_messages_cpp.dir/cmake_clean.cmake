@@ -1,7 +1,7 @@
 file(REMOVE_RECURSE
-  "/home/wizard/sharf/devel/include/mote_ros/Pos.h"
-  "/home/wizard/sharf/devel/include/mote_ros/State.h"
-  "/home/wizard/sharf/devel/include/mote_ros/Yaw.h"
+  "/home/wizard/AGC-MOTE-Monte-Carlo/devel/include/mote_ros/Pos.h"
+  "/home/wizard/AGC-MOTE-Monte-Carlo/devel/include/mote_ros/State.h"
+  "/home/wizard/AGC-MOTE-Monte-Carlo/devel/include/mote_ros/Yaw.h"
   "CMakeFiles/mote_ros_generate_messages_cpp"
 )
 

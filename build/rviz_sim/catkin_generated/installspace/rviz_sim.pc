@@ -1,4 +1,4 @@
-prefix=/home/wizard/sharf/install
+prefix=/home/wizard/AGC-MOTE-Monte-Carlo/install
 
 Name: rviz_sim
 Description: Description of rviz_sim

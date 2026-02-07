@@ -1,35 +1,43 @@
-# Use the official ROS base image
 FROM ros:noetic-ros-base
 
-# Update and install necessary packages
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
+    python3-pip \
+    python3-catkin-tools \
+    ros-noetic-tf \
+    ros-noetic-tf-conversions \
+    ros-noetic-geometry-msgs \
+    ros-noetic-sensor-msgs \
+    ros-noetic-nav-msgs \
     ros-noetic-rviz \
+    ros-noetic-robot-state-publisher \
+    ros-noetic-xacro \
+    wmctrl \
     && rm -rf /var/lib/apt/lists/*
 
-# Setup environment variables
-ENV ROS_WS=/opt/ros_ws
-RUN echo "export PS1='root@mote_ros:\w\$ '" >> /root/.bashrc
-# Create a workspace
-RUN mkdir -p $ROS_WS/src
-WORKDIR $ROS_WS
+# Install Python dependencies
+# Upgrade pip first to ensure we get new wheels
+RUN pip3 install --no-cache-dir --upgrade pip && \
+    pip3 install --no-cache-dir --upgrade \
+    numpy \
+    utm \
+    matplotlib \
+    rospkg
 
-# Clone your ROS package(s) into the workspace
-# Note: Replace the URL below with the actual URL or path to your ROS package(s)
-# RUN git clone https://github.com/example/my_ros_package.git src/my_ros_package
+# Setup catkin workspace
+WORKDIR /root/catkin_ws/src
+# Copy specifically the source code folders
+COPY src/ /root/catkin_ws/src/AGC-MOTE-Monte-Carlo/src/
 
-# Install dependencies
-RUN apt-get update && \
-    rosdep update && \
-    rosdep install --from-paths src --ignore-src -r -y \
-    && rm -rf /var/lib/apt/lists/*
+# Force create a valid Top-Level CMakeLists.txt if missing, by symlinking the standard catkin one
+RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && catkin_init_workspace"
 
 # Build the workspace
-RUN /bin/bash -c '. /opt/ros/noetic/setup.bash; cd $ROS_WS; catkin_make'
+WORKDIR /root/catkin_ws
+RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && catkin_make"
 
-# Source the workspace
-RUN echo "source $ROS_WS/devel/setup.bash" >> ~/.bashrc
+# Add setup.bash to .bashrc
+RUN echo "source /root/catkin_ws/devel/setup.bash" >> /root/.bashrc
 
-CMD ["bash"]
-
-# Default command to run when starting the container
-CMD ["roslaunch", "mote_ros", "run_both_nodes.launch"]
+# Set the entrypoint
+CMD ["/bin/bash", "-c", "source /root/catkin_ws/devel/setup.bash && roslaunch mote_ros run_both_nodes.launch"]

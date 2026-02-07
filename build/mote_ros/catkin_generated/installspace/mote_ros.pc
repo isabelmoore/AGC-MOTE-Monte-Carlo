@@ -1,4 +1,4 @@
-prefix=/home/wizard/sharf/install
+prefix=/home/wizard/AGC-MOTE-Monte-Carlo/install
 
 Name: mote_ros
 Description: Description of mote_ros

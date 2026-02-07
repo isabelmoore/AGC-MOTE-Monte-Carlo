@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.9
 
 import rospy
 from visualization_msgs.msg import Marker

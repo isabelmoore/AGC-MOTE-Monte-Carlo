@@ -1,0 +1,30 @@
+services:
+  mote_ros:
+    build: .
+    image: mote_ros:latest
+    container_name: mote_ros_container
+    # Mount the current directory so code changes are reflected immediately
+    volumes:
+      - .:/root/catkin_ws/src/AGC-MOTE-Monte-Carlo
+      - build_vol:/root/catkin_ws/build
+      - devel_vol:/root/catkin_ws/devel
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - LIBGL_ALWAYS_SOFTWARE=1
+      - QT_QPA_PLATFORM=xcb
+    # Use host networking to easily communicate with ROS on host/other containers if needed
+    # Also makes it easier to access bag files depending on where they are
+    network_mode: "host"
+    # Interactive mode
+    stdin_open: true
+    tty: true
+    # Command to keep container running or run the node
+    command: /bin/bash -c "source devel/setup.bash && roslaunch mote_ros run_both_nodes.launch"
+    # command: /bin/bash
+    working_dir: /root/catkin_ws
+
+volumes:
+  build_vol:
+  devel_vol:

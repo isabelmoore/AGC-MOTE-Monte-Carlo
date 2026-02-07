@@ -136,8 +136,8 @@
     8
     ;; float64 _longitude
     8
-    ;; float64 _altitude
-    8
+    ;; float32 _altitude
+    4
     ;; float32 _nedVelX
     4
     ;; float32 _nedVelY
@@ -185,8 +185,8 @@
        (sys::poke _latitude (send s :buffer) (send s :count) :double) (incf (stream-count s) 8)
      ;; float64 _longitude
        (sys::poke _longitude (send s :buffer) (send s :count) :double) (incf (stream-count s) 8)
-     ;; float64 _altitude
-       (sys::poke _altitude (send s :buffer) (send s :count) :double) (incf (stream-count s) 8)
+     ;; float32 _altitude
+       (sys::poke _altitude (send s :buffer) (send s :count) :float) (incf (stream-count s) 4)
      ;; float32 _nedVelX
        (sys::poke _nedVelX (send s :buffer) (send s :count) :float) (incf (stream-count s) 4)
      ;; float32 _nedVelY
@@ -236,8 +236,8 @@
      (setq _latitude (sys::peek buf ptr- :double)) (incf ptr- 8)
    ;; float64 _longitude
      (setq _longitude (sys::peek buf ptr- :double)) (incf ptr- 8)
-   ;; float64 _altitude
-     (setq _altitude (sys::peek buf ptr- :double)) (incf ptr- 8)
+   ;; float32 _altitude
+     (setq _altitude (sys::peek buf ptr- :float)) (incf ptr- 4)
    ;; float32 _nedVelX
      (setq _nedVelX (sys::peek buf ptr- :float)) (incf ptr- 4)
    ;; float32 _nedVelY
@@ -256,49 +256,26 @@
    self)
   )
 
-(setf (get vectornav::Ins :md5sum-) "f15f75d40252c44bbfc42358abc151e2")
+(setf (get vectornav::Ins :md5sum-) "ea51f611cd21443d10c89d3f7950b9cc")
 (setf (get vectornav::Ins :datatype-) "vectornav/Ins")
 (setf (get vectornav::Ins :definition-)
       "Header header
-
-float64 time	# GPS time of week in seconds
-uint16 week		# GPS week (week)
-uint64 utcTime	# The current UTC time. The year is given as a signed byte year offset from the year 2000. E.g. 2013 as 13.
-                # Fields:       year    month    day    hour    min    sec    ms
-                # Byte offset:  0       1        2      3       4      5      6|7
-
-# INS Status
-# Name		Bit Offset	Format	Description
-# Mode		0			2 bits	Indicates the current mode of the INS filter.
-#								0 = Not tracking. Insufficient dynamic motion to estimate attitude.
-#								1 = Sufficient dynamic motion, but solution not within performance specs.
-#								2 = INS is tracking and operating within specifications.
-# GpsFix	2			1 bit	Indicates whether the GPS has a proper fix
-# Error 	3			4 bits	Sensor measurement error code
-#								0 = No errors detected.
-# 								Name			Bit Offset	Format	Description
-#								Time Error		0			1 bit	High if INS filter loop exceeds 5 ms.
-#								IMU Error		1			1 bit	High if IMU communication error is detected.
-#								Mag/Pres Error	2			1 bit	High if Magnetometer or Pressure sensor error is detected.
-#								GPS Error		3			1 bit	High if GPS communication error is detected.
-#Reserved	7			9 bits	Reserved for future use.
+float64 time
+uint16 week
+uint64 utcTime
 uint16 insStatus
-
-float32 yaw		# Yaw angle relative to true north. (degree)
-float32 pitch	# Yaw angle relative to true north (degree)
-float32 roll	# Pitch angle relative to horizon (degree)
-
-float64 latitude	# INS solution position in geodetic latitude (degree)
-float64 longitude	# INS solution position in geodetic longitude (degree)
-float64 altitude	# Height above ellipsoid. (WGS84) (meter)
-
-float32 nedVelX		# INS solution velocity in NED frame. (North) (m/s)
-float32 nedVelY		# INS solution velocity in NED frame. (East) (m/s)
-float32 nedVelZ		# INS solution velocity in NED frame. (Down) (m/s)
-
-float32[3] attUncertainty	# Uncertainty in attitude estimate (yaw, pitch and roll in degrees)
-float32 posUncertainty	# Uncertainty in position estimate (m)
-float32 velUncertainty	# Uncertainty in velocity estimate (m/s)
+float32 yaw
+float32 pitch
+float32 roll
+float64 latitude
+float64 longitude
+float32 altitude
+float32 nedVelX
+float32 nedVelY
+float32 nedVelZ
+float32[3] attUncertainty
+float32 posUncertainty
+float32 velUncertainty
 
 ================================================================================
 MSG: std_msgs/Header
@@ -320,6 +297,6 @@ string frame_id
 
 
 
-(provide :vectornav/Ins "f15f75d40252c44bbfc42358abc151e2")
+(provide :vectornav/Ins "ea51f611cd21443d10c89d3f7950b9cc")
 
 

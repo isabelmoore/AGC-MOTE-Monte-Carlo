@@ -1,1 +1,1 @@
-set(ORDERED_PATHS "/opt/ros/noetic/lib")
+set(ORDERED_PATHS "/home/wizard/miniconda3/envs/mote_ros/lib")

@@ -6,7 +6,7 @@ project(mote_ros)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
-## is used, also find other catkin packages
+
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   roscpp
@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   std_msgs
   message_generation
+  vectornav
 )
 
 ################################################
@@ -40,7 +41,7 @@ generate_messages(
 ## catkin specific configuration ##
 ###################################
 catkin_package(
-  CATKIN_DEPENDS geometry_msgs roscpp rospy sensor_msgs std_msgs message_runtime
+  CATKIN_DEPENDS geometry_msgs roscpp rospy sensor_msgs std_msgs message_runtime vectornav
 )
 
 ###########

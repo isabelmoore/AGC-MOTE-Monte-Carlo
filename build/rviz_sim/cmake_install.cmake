@@ -1,8 +1,8 @@
-# Install script for directory: /home/wizard/sharf/src/rviz_sim
+# Install script for directory: /home/wizard/AGC-MOTE-Monte-Carlo/src/rviz_sim
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
-  set(CMAKE_INSTALL_PREFIX "/home/wizard/sharf/install")
+  set(CMAKE_INSTALL_PREFIX "/home/wizard/AGC-MOTE-Monte-Carlo/install")
 endif()
 string(REGEX REPLACE "/$" "" CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 
@@ -37,29 +37,34 @@ if(NOT DEFINED CMAKE_CROSSCOMPILING)
   set(CMAKE_CROSSCOMPILING "FALSE")
 endif()
 
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/pkgconfig" TYPE FILE FILES "/home/wizard/sharf/build/rviz_sim/catkin_generated/installspace/rviz_sim.pc")
+# Set default install directory permissions.
+if(NOT DEFINED CMAKE_OBJDUMP)
+  set(CMAKE_OBJDUMP "/usr/bin/objdump")
 endif()
 
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
+if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/pkgconfig" TYPE FILE FILES "/home/wizard/AGC-MOTE-Monte-Carlo/build/rviz_sim/catkin_generated/installspace/rviz_sim.pc")
+endif()
+
+if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
   file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/rviz_sim/cmake" TYPE FILE FILES
-    "/home/wizard/sharf/build/rviz_sim/catkin_generated/installspace/rviz_simConfig.cmake"
-    "/home/wizard/sharf/build/rviz_sim/catkin_generated/installspace/rviz_simConfig-version.cmake"
+    "/home/wizard/AGC-MOTE-Monte-Carlo/build/rviz_sim/catkin_generated/installspace/rviz_simConfig.cmake"
+    "/home/wizard/AGC-MOTE-Monte-Carlo/build/rviz_sim/catkin_generated/installspace/rviz_simConfig-version.cmake"
     )
 endif()
 
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/rviz_sim" TYPE FILE FILES "/home/wizard/sharf/src/rviz_sim/package.xml")
+if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/rviz_sim" TYPE FILE FILES "/home/wizard/AGC-MOTE-Monte-Carlo/src/rviz_sim/package.xml")
 endif()
 
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/rviz_sim" TYPE PROGRAM FILES "/home/wizard/sharf/build/rviz_sim/catkin_generated/installspace/marker_publisher.py")
+if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/rviz_sim" TYPE PROGRAM FILES "/home/wizard/AGC-MOTE-Monte-Carlo/build/rviz_sim/catkin_generated/installspace/marker_publisher.py")
 endif()
 
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
+if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
   file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/rviz_sim" TYPE DIRECTORY FILES
-    "/home/wizard/sharf/src/rviz_sim/launch"
-    "/home/wizard/sharf/src/rviz_sim/rviz"
+    "/home/wizard/AGC-MOTE-Monte-Carlo/src/rviz_sim/launch"
+    "/home/wizard/AGC-MOTE-Monte-Carlo/src/rviz_sim/rviz"
     FILES_MATCHING REGEX "/[^/]*\\.launch$" REGEX "/[^/]*\\.rviz$")
 endif()
 

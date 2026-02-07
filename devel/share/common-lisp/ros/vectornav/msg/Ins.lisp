@@ -243,15 +243,11 @@
     (cl:write-byte (cl:ldb (cl:byte 8 40) bits) ostream)
     (cl:write-byte (cl:ldb (cl:byte 8 48) bits) ostream)
     (cl:write-byte (cl:ldb (cl:byte 8 56) bits) ostream))
-  (cl:let ((bits (roslisp-utils:encode-double-float-bits (cl:slot-value msg 'altitude))))
+  (cl:let ((bits (roslisp-utils:encode-single-float-bits (cl:slot-value msg 'altitude))))
     (cl:write-byte (cl:ldb (cl:byte 8 0) bits) ostream)
     (cl:write-byte (cl:ldb (cl:byte 8 8) bits) ostream)
     (cl:write-byte (cl:ldb (cl:byte 8 16) bits) ostream)
-    (cl:write-byte (cl:ldb (cl:byte 8 24) bits) ostream)
-    (cl:write-byte (cl:ldb (cl:byte 8 32) bits) ostream)
-    (cl:write-byte (cl:ldb (cl:byte 8 40) bits) ostream)
-    (cl:write-byte (cl:ldb (cl:byte 8 48) bits) ostream)
-    (cl:write-byte (cl:ldb (cl:byte 8 56) bits) ostream))
+    (cl:write-byte (cl:ldb (cl:byte 8 24) bits) ostream))
   (cl:let ((bits (roslisp-utils:encode-single-float-bits (cl:slot-value msg 'nedVelX))))
     (cl:write-byte (cl:ldb (cl:byte 8 0) bits) ostream)
     (cl:write-byte (cl:ldb (cl:byte 8 8) bits) ostream)
@@ -352,11 +348,7 @@
       (cl:setf (cl:ldb (cl:byte 8 8) bits) (cl:read-byte istream))
       (cl:setf (cl:ldb (cl:byte 8 16) bits) (cl:read-byte istream))
       (cl:setf (cl:ldb (cl:byte 8 24) bits) (cl:read-byte istream))
-      (cl:setf (cl:ldb (cl:byte 8 32) bits) (cl:read-byte istream))
-      (cl:setf (cl:ldb (cl:byte 8 40) bits) (cl:read-byte istream))
-      (cl:setf (cl:ldb (cl:byte 8 48) bits) (cl:read-byte istream))
-      (cl:setf (cl:ldb (cl:byte 8 56) bits) (cl:read-byte istream))
-    (cl:setf (cl:slot-value msg 'altitude) (roslisp-utils:decode-double-float-bits bits)))
+    (cl:setf (cl:slot-value msg 'altitude) (roslisp-utils:decode-single-float-bits bits)))
     (cl:let ((bits 0))
       (cl:setf (cl:ldb (cl:byte 8 0) bits) (cl:read-byte istream))
       (cl:setf (cl:ldb (cl:byte 8 8) bits) (cl:read-byte istream))
@@ -406,16 +398,16 @@
   "vectornav/Ins")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql '<Ins>)))
   "Returns md5sum for a message object of type '<Ins>"
-  "f15f75d40252c44bbfc42358abc151e2")
+  "ea51f611cd21443d10c89d3f7950b9cc")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql 'Ins)))
   "Returns md5sum for a message object of type 'Ins"
-  "f15f75d40252c44bbfc42358abc151e2")
+  "ea51f611cd21443d10c89d3f7950b9cc")
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql '<Ins>)))
   "Returns full string definition for message of type '<Ins>"
-  (cl:format cl:nil "Header header~%~%float64 time	# GPS time of week in seconds~%uint16 week		# GPS week (week)~%uint64 utcTime	# The current UTC time. The year is given as a signed byte year offset from the year 2000. E.g. 2013 as 13.~%                # Fields:       year    month    day    hour    min    sec    ms~%                # Byte offset:  0       1        2      3       4      5      6|7~%~%# INS Status~%# Name		Bit Offset	Format	Description~%# Mode		0			2 bits	Indicates the current mode of the INS filter.~%#								0 = Not tracking. Insufficient dynamic motion to estimate attitude.~%#								1 = Sufficient dynamic motion, but solution not within performance specs.~%#								2 = INS is tracking and operating within specifications.~%# GpsFix	2			1 bit	Indicates whether the GPS has a proper fix~%# Error 	3			4 bits	Sensor measurement error code~%#								0 = No errors detected.~%# 								Name			Bit Offset	Format	Description~%#								Time Error		0			1 bit	High if INS filter loop exceeds 5 ms.~%#								IMU Error		1			1 bit	High if IMU communication error is detected.~%#								Mag/Pres Error	2			1 bit	High if Magnetometer or Pressure sensor error is detected.~%#								GPS Error		3			1 bit	High if GPS communication error is detected.~%#Reserved	7			9 bits	Reserved for future use.~%uint16 insStatus~%~%float32 yaw		# Yaw angle relative to true north. (degree)~%float32 pitch	# Yaw angle relative to true north (degree)~%float32 roll	# Pitch angle relative to horizon (degree)~%~%float64 latitude	# INS solution position in geodetic latitude (degree)~%float64 longitude	# INS solution position in geodetic longitude (degree)~%float64 altitude	# Height above ellipsoid. (WGS84) (meter)~%~%float32 nedVelX		# INS solution velocity in NED frame. (North) (m/s)~%float32 nedVelY		# INS solution velocity in NED frame. (East) (m/s)~%float32 nedVelZ		# INS solution velocity in NED frame. (Down) (m/s)~%~%float32[3] attUncertainty	# Uncertainty in attitude estimate (yaw, pitch and roll in degrees)~%float32 posUncertainty	# Uncertainty in position estimate (m)~%float32 velUncertainty	# Uncertainty in velocity estimate (m/s)~%~%================================================================================~%MSG: std_msgs/Header~%# Standard metadata for higher-level stamped data types.~%# This is generally used to communicate timestamped data ~%# in a particular coordinate frame.~%# ~%# sequence ID: consecutively increasing ID ~%uint32 seq~%#Two-integer timestamp that is expressed as:~%# * stamp.sec: seconds (stamp_secs) since epoch (in Python the variable is called 'secs')~%# * stamp.nsec: nanoseconds since stamp_secs (in Python the variable is called 'nsecs')~%# time-handling sugar is provided by the client library~%time stamp~%#Frame this data is associated with~%string frame_id~%~%~%"))
+  (cl:format cl:nil "Header header~%float64 time~%uint16 week~%uint64 utcTime~%uint16 insStatus~%float32 yaw~%float32 pitch~%float32 roll~%float64 latitude~%float64 longitude~%float32 altitude~%float32 nedVelX~%float32 nedVelY~%float32 nedVelZ~%float32[3] attUncertainty~%float32 posUncertainty~%float32 velUncertainty~%~%================================================================================~%MSG: std_msgs/Header~%# Standard metadata for higher-level stamped data types.~%# This is generally used to communicate timestamped data ~%# in a particular coordinate frame.~%# ~%# sequence ID: consecutively increasing ID ~%uint32 seq~%#Two-integer timestamp that is expressed as:~%# * stamp.sec: seconds (stamp_secs) since epoch (in Python the variable is called 'secs')~%# * stamp.nsec: nanoseconds since stamp_secs (in Python the variable is called 'nsecs')~%# time-handling sugar is provided by the client library~%time stamp~%#Frame this data is associated with~%string frame_id~%~%~%"))
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql 'Ins)))
   "Returns full string definition for message of type 'Ins"
-  (cl:format cl:nil "Header header~%~%float64 time	# GPS time of week in seconds~%uint16 week		# GPS week (week)~%uint64 utcTime	# The current UTC time. The year is given as a signed byte year offset from the year 2000. E.g. 2013 as 13.~%                # Fields:       year    month    day    hour    min    sec    ms~%                # Byte offset:  0       1        2      3       4      5      6|7~%~%# INS Status~%# Name		Bit Offset	Format	Description~%# Mode		0			2 bits	Indicates the current mode of the INS filter.~%#								0 = Not tracking. Insufficient dynamic motion to estimate attitude.~%#								1 = Sufficient dynamic motion, but solution not within performance specs.~%#								2 = INS is tracking and operating within specifications.~%# GpsFix	2			1 bit	Indicates whether the GPS has a proper fix~%# Error 	3			4 bits	Sensor measurement error code~%#								0 = No errors detected.~%# 								Name			Bit Offset	Format	Description~%#								Time Error		0			1 bit	High if INS filter loop exceeds 5 ms.~%#								IMU Error		1			1 bit	High if IMU communication error is detected.~%#								Mag/Pres Error	2			1 bit	High if Magnetometer or Pressure sensor error is detected.~%#								GPS Error		3			1 bit	High if GPS communication error is detected.~%#Reserved	7			9 bits	Reserved for future use.~%uint16 insStatus~%~%float32 yaw		# Yaw angle relative to true north. (degree)~%float32 pitch	# Yaw angle relative to true north (degree)~%float32 roll	# Pitch angle relative to horizon (degree)~%~%float64 latitude	# INS solution position in geodetic latitude (degree)~%float64 longitude	# INS solution position in geodetic longitude (degree)~%float64 altitude	# Height above ellipsoid. (WGS84) (meter)~%~%float32 nedVelX		# INS solution velocity in NED frame. (North) (m/s)~%float32 nedVelY		# INS solution velocity in NED frame. (East) (m/s)~%float32 nedVelZ		# INS solution velocity in NED frame. (Down) (m/s)~%~%float32[3] attUncertainty	# Uncertainty in attitude estimate (yaw, pitch and roll in degrees)~%float32 posUncertainty	# Uncertainty in position estimate (m)~%float32 velUncertainty	# Uncertainty in velocity estimate (m/s)~%~%================================================================================~%MSG: std_msgs/Header~%# Standard metadata for higher-level stamped data types.~%# This is generally used to communicate timestamped data ~%# in a particular coordinate frame.~%# ~%# sequence ID: consecutively increasing ID ~%uint32 seq~%#Two-integer timestamp that is expressed as:~%# * stamp.sec: seconds (stamp_secs) since epoch (in Python the variable is called 'secs')~%# * stamp.nsec: nanoseconds since stamp_secs (in Python the variable is called 'nsecs')~%# time-handling sugar is provided by the client library~%time stamp~%#Frame this data is associated with~%string frame_id~%~%~%"))
+  (cl:format cl:nil "Header header~%float64 time~%uint16 week~%uint64 utcTime~%uint16 insStatus~%float32 yaw~%float32 pitch~%float32 roll~%float64 latitude~%float64 longitude~%float32 altitude~%float32 nedVelX~%float32 nedVelY~%float32 nedVelZ~%float32[3] attUncertainty~%float32 posUncertainty~%float32 velUncertainty~%~%================================================================================~%MSG: std_msgs/Header~%# Standard metadata for higher-level stamped data types.~%# This is generally used to communicate timestamped data ~%# in a particular coordinate frame.~%# ~%# sequence ID: consecutively increasing ID ~%uint32 seq~%#Two-integer timestamp that is expressed as:~%# * stamp.sec: seconds (stamp_secs) since epoch (in Python the variable is called 'secs')~%# * stamp.nsec: nanoseconds since stamp_secs (in Python the variable is called 'nsecs')~%# time-handling sugar is provided by the client library~%time stamp~%#Frame this data is associated with~%string frame_id~%~%~%"))
 (cl:defmethod roslisp-msg-protocol:serialization-length ((msg <Ins>))
   (cl:+ 0
      (roslisp-msg-protocol:serialization-length (cl:slot-value msg 'header))
@@ -428,7 +420,7 @@
      4
      8
      8
-     8
+     4
      4
      4
      4

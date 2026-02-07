@@ -1,5 +1,5 @@
 file(REMOVE_RECURSE
-  "/home/wizard/sharf/devel/include/vectornav/Ins.h"
+  "/home/wizard/AGC-MOTE-Monte-Carlo/devel/include/vectornav/Ins.h"
   "CMakeFiles/vectornav_generate_messages_cpp"
 )
 

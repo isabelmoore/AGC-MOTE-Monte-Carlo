@@ -1,5 +1,5 @@
 file(REMOVE_RECURSE
-  "/home/wizard/sharf/devel/share/common-lisp/ros/vectornav/msg/Ins.lisp"
+  "/home/wizard/AGC-MOTE-Monte-Carlo/devel/share/common-lisp/ros/vectornav/msg/Ins.lisp"
   "CMakeFiles/vectornav_generate_messages_lisp"
 )
 

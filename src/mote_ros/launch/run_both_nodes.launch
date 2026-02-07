@@ -1,4 +1,7 @@
 <launch>
+  <!-- Use simulated time from bag playback -->
+  <param name="use_sim_time" value="true"/>
+
   <!-- Launch the Kalman filter node -->
   <node name="kalman_filter_node" pkg="mote_ros" type="kalman_filter_node.py" output="screen" launch-prefix="python3">
   </node>
@@ -10,4 +13,21 @@
   <!-- Launch the Health Monitoring node
   <node name="health_monitor_node" pkg="mote_ros" type="health_monitor_node.py" output="screen" launch-prefix="python3">
   </node> -->
+
+  <!-- Load the Jeep URDF model -->
+  <param name="robot_description" textfile="$(find mote_ros)/urdf/vehicle.urdf"/>
+
+  <!-- Publish robot state (static transforms) -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+
+  <!-- Launch the Visualization Node -->
+  <node name="visualization_node" pkg="mote_ros" type="visualization_node.py" output="screen" launch-prefix="python3">
+  </node>
+
+
+  <!-- RViz removed - launch separately via rviz.launch -->
+
+
+  <!-- Launch the rosbag play node -->
+  <node pkg="rosbag" type="play" name="player" output="screen" args="--clock --loop /root/catkin_ws/src/AGC-MOTE-Monte-Carlo/jeep_loca_pos_2024-05-23-19-40-51.bag"/>
 </launch>

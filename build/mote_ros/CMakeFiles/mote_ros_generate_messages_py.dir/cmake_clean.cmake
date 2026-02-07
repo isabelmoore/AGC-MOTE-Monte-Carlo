@@ -1,8 +1,8 @@
 file(REMOVE_RECURSE
-  "/home/wizard/sharf/devel/lib/python3/dist-packages/mote_ros/msg/_Pos.py"
-  "/home/wizard/sharf/devel/lib/python3/dist-packages/mote_ros/msg/_State.py"
-  "/home/wizard/sharf/devel/lib/python3/dist-packages/mote_ros/msg/_Yaw.py"
-  "/home/wizard/sharf/devel/lib/python3/dist-packages/mote_ros/msg/__init__.py"
+  "/home/wizard/AGC-MOTE-Monte-Carlo/devel/lib/python3.9/site-packages/mote_ros/msg/_Pos.py"
+  "/home/wizard/AGC-MOTE-Monte-Carlo/devel/lib/python3.9/site-packages/mote_ros/msg/_State.py"
+  "/home/wizard/AGC-MOTE-Monte-Carlo/devel/lib/python3.9/site-packages/mote_ros/msg/_Yaw.py"
+  "/home/wizard/AGC-MOTE-Monte-Carlo/devel/lib/python3.9/site-packages/mote_ros/msg/__init__.py"
   "CMakeFiles/mote_ros_generate_messages_py"
 )
 

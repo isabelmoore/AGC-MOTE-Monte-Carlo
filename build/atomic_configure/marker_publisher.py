@@ -1,9 +1,9 @@
-#!/usr/bin/python3
+#!/home/wizard/miniconda3/envs/mote_ros/bin/python3.9
 # -*- coding: utf-8 -*-
 # generated from catkin/cmake/template/script.py.in
 # creates a relay to a python script source file, acting as that file.
 # The purpose is that of a symlink
-python_script = '/home/wizard/sharf/src/rviz_sim/src/marker_publisher.py'
+python_script = '/home/wizard/AGC-MOTE-Monte-Carlo/src/rviz_sim/src/marker_publisher.py'
 with open(python_script, 'r') as fh:
     context = {
         '__builtins__': __builtins__,

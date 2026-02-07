@@ -1,7 +1,7 @@
 file(REMOVE_RECURSE
-  "/home/wizard/sharf/devel/share/gennodejs/ros/mote_ros/msg/Pos.js"
-  "/home/wizard/sharf/devel/share/gennodejs/ros/mote_ros/msg/State.js"
-  "/home/wizard/sharf/devel/share/gennodejs/ros/mote_ros/msg/Yaw.js"
+  "/home/wizard/AGC-MOTE-Monte-Carlo/devel/share/gennodejs/ros/mote_ros/msg/Pos.js"
+  "/home/wizard/AGC-MOTE-Monte-Carlo/devel/share/gennodejs/ros/mote_ros/msg/State.js"
+  "/home/wizard/AGC-MOTE-Monte-Carlo/devel/share/gennodejs/ros/mote_ros/msg/Yaw.js"
   "CMakeFiles/mote_ros_generate_messages_nodejs"
 )
 

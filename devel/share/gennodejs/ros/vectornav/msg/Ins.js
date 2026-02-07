@@ -166,7 +166,7 @@ class Ins {
     // Serialize message field [longitude]
     bufferOffset = _serializer.float64(obj.longitude, buffer, bufferOffset);
     // Serialize message field [altitude]
-    bufferOffset = _serializer.float64(obj.altitude, buffer, bufferOffset);
+    bufferOffset = _serializer.float32(obj.altitude, buffer, bufferOffset);
     // Serialize message field [nedVelX]
     bufferOffset = _serializer.float32(obj.nedVelX, buffer, bufferOffset);
     // Serialize message field [nedVelY]
@@ -211,7 +211,7 @@ class Ins {
     // Deserialize message field [longitude]
     data.longitude = _deserializer.float64(buffer, bufferOffset);
     // Deserialize message field [altitude]
-    data.altitude = _deserializer.float64(buffer, bufferOffset);
+    data.altitude = _deserializer.float32(buffer, bufferOffset);
     // Deserialize message field [nedVelX]
     data.nedVelX = _deserializer.float32(buffer, bufferOffset);
     // Deserialize message field [nedVelY]
@@ -230,7 +230,7 @@ class Ins {
   static getMessageSize(object) {
     let length = 0;
     length += std_msgs.msg.Header.getMessageSize(object.header);
-    return length + 88;
+    return length + 84;
   }
 
   static datatype() {
@@ -240,52 +240,29 @@ class Ins {
 
   static md5sum() {
     //Returns md5sum for a message object
-    return 'f15f75d40252c44bbfc42358abc151e2';
+    return 'ea51f611cd21443d10c89d3f7950b9cc';
   }
 
   static messageDefinition() {
     // Returns full string definition for message
     return `
     Header header
-    
-    float64 time	# GPS time of week in seconds
-    uint16 week		# GPS week (week)
-    uint64 utcTime	# The current UTC time. The year is given as a signed byte year offset from the year 2000. E.g. 2013 as 13.
-                    # Fields:       year    month    day    hour    min    sec    ms
-                    # Byte offset:  0       1        2      3       4      5      6|7
-    
-    # INS Status
-    # Name		Bit Offset	Format	Description
-    # Mode		0			2 bits	Indicates the current mode of the INS filter.
-    #								0 = Not tracking. Insufficient dynamic motion to estimate attitude.
-    #								1 = Sufficient dynamic motion, but solution not within performance specs.
-    #								2 = INS is tracking and operating within specifications.
-    # GpsFix	2			1 bit	Indicates whether the GPS has a proper fix
-    # Error 	3			4 bits	Sensor measurement error code
-    #								0 = No errors detected.
-    # 								Name			Bit Offset	Format	Description
-    #								Time Error		0			1 bit	High if INS filter loop exceeds 5 ms.
-    #								IMU Error		1			1 bit	High if IMU communication error is detected.
-    #								Mag/Pres Error	2			1 bit	High if Magnetometer or Pressure sensor error is detected.
-    #								GPS Error		3			1 bit	High if GPS communication error is detected.
-    #Reserved	7			9 bits	Reserved for future use.
+    float64 time
+    uint16 week
+    uint64 utcTime
     uint16 insStatus
-    
-    float32 yaw		# Yaw angle relative to true north. (degree)
-    float32 pitch	# Yaw angle relative to true north (degree)
-    float32 roll	# Pitch angle relative to horizon (degree)
-    
-    float64 latitude	# INS solution position in geodetic latitude (degree)
-    float64 longitude	# INS solution position in geodetic longitude (degree)
-    float64 altitude	# Height above ellipsoid. (WGS84) (meter)
-    
-    float32 nedVelX		# INS solution velocity in NED frame. (North) (m/s)
-    float32 nedVelY		# INS solution velocity in NED frame. (East) (m/s)
-    float32 nedVelZ		# INS solution velocity in NED frame. (Down) (m/s)
-    
-    float32[3] attUncertainty	# Uncertainty in attitude estimate (yaw, pitch and roll in degrees)
-    float32 posUncertainty	# Uncertainty in position estimate (m)
-    float32 velUncertainty	# Uncertainty in velocity estimate (m/s)
+    float32 yaw
+    float32 pitch
+    float32 roll
+    float64 latitude
+    float64 longitude
+    float32 altitude
+    float32 nedVelX
+    float32 nedVelY
+    float32 nedVelZ
+    float32[3] attUncertainty
+    float32 posUncertainty
+    float32 velUncertainty
     
     ================================================================================
     MSG: std_msgs/Header

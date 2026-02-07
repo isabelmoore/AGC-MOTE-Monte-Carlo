@@ -98,7 +98,7 @@ struct Ins_
    typedef double _longitude_type;
   _longitude_type longitude;
 
-   typedef double _altitude_type;
+   typedef float _altitude_type;
   _altitude_type altitude;
 
    typedef float _nedVelX_type;
@@ -221,12 +221,12 @@ struct MD5Sum< ::vectornav::Ins_<ContainerAllocator> >
 {
   static const char* value()
   {
-    return "f15f75d40252c44bbfc42358abc151e2";
+    return "ea51f611cd21443d10c89d3f7950b9cc";
   }
 
   static const char* value(const ::vectornav::Ins_<ContainerAllocator>&) { return value(); }
-  static const uint64_t static_value1 = 0xf15f75d40252c44bULL;
-  static const uint64_t static_value2 = 0xbfc42358abc151e2ULL;
+  static const uint64_t static_value1 = 0xea51f611cd21443dULL;
+  static const uint64_t static_value2 = 0x10c89d3f7950b9ccULL;
 };
 
 template<class ContainerAllocator>
@@ -246,45 +246,22 @@ struct Definition< ::vectornav::Ins_<ContainerAllocator> >
   static const char* value()
   {
     return "Header header\n"
-"\n"
-"float64 time	# GPS time of week in seconds\n"
-"uint16 week		# GPS week (week)\n"
-"uint64 utcTime	# The current UTC time. The year is given as a signed byte year offset from the year 2000. E.g. 2013 as 13.\n"
-"                # Fields:       year    month    day    hour    min    sec    ms\n"
-"                # Byte offset:  0       1        2      3       4      5      6|7\n"
-"\n"
-"# INS Status\n"
-"# Name		Bit Offset	Format	Description\n"
-"# Mode		0			2 bits	Indicates the current mode of the INS filter.\n"
-"#								0 = Not tracking. Insufficient dynamic motion to estimate attitude.\n"
-"#								1 = Sufficient dynamic motion, but solution not within performance specs.\n"
-"#								2 = INS is tracking and operating within specifications.\n"
-"# GpsFix	2			1 bit	Indicates whether the GPS has a proper fix\n"
-"# Error 	3			4 bits	Sensor measurement error code\n"
-"#								0 = No errors detected.\n"
-"# 								Name			Bit Offset	Format	Description\n"
-"#								Time Error		0			1 bit	High if INS filter loop exceeds 5 ms.\n"
-"#								IMU Error		1			1 bit	High if IMU communication error is detected.\n"
-"#								Mag/Pres Error	2			1 bit	High if Magnetometer or Pressure sensor error is detected.\n"
-"#								GPS Error		3			1 bit	High if GPS communication error is detected.\n"
-"#Reserved	7			9 bits	Reserved for future use.\n"
+"float64 time\n"
+"uint16 week\n"
+"uint64 utcTime\n"
 "uint16 insStatus\n"
-"\n"
-"float32 yaw		# Yaw angle relative to true north. (degree)\n"
-"float32 pitch	# Yaw angle relative to true north (degree)\n"
-"float32 roll	# Pitch angle relative to horizon (degree)\n"
-"\n"
-"float64 latitude	# INS solution position in geodetic latitude (degree)\n"
-"float64 longitude	# INS solution position in geodetic longitude (degree)\n"
-"float64 altitude	# Height above ellipsoid. (WGS84) (meter)\n"
-"\n"
-"float32 nedVelX		# INS solution velocity in NED frame. (North) (m/s)\n"
-"float32 nedVelY		# INS solution velocity in NED frame. (East) (m/s)\n"
-"float32 nedVelZ		# INS solution velocity in NED frame. (Down) (m/s)\n"
-"\n"
-"float32[3] attUncertainty	# Uncertainty in attitude estimate (yaw, pitch and roll in degrees)\n"
-"float32 posUncertainty	# Uncertainty in position estimate (m)\n"
-"float32 velUncertainty	# Uncertainty in velocity estimate (m/s)\n"
+"float32 yaw\n"
+"float32 pitch\n"
+"float32 roll\n"
+"float64 latitude\n"
+"float64 longitude\n"
+"float32 altitude\n"
+"float32 nedVelX\n"
+"float32 nedVelY\n"
+"float32 nedVelZ\n"
+"float32[3] attUncertainty\n"
+"float32 posUncertainty\n"
+"float32 velUncertainty\n"
 "\n"
 "================================================================================\n"
 "MSG: std_msgs/Header\n"
@@ -376,7 +353,7 @@ struct Printer< ::vectornav::Ins_<ContainerAllocator> >
     s << indent << "longitude: ";
     Printer<double>::stream(s, indent + "  ", v.longitude);
     s << indent << "altitude: ";
-    Printer<double>::stream(s, indent + "  ", v.altitude);
+    Printer<float>::stream(s, indent + "  ", v.altitude);
     s << indent << "nedVelX: ";
     Printer<float>::stream(s, indent + "  ", v.nedVelX);
     s << indent << "nedVelY: ";
