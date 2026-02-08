@@ -61,7 +61,7 @@ class KalmanFilterNode:
 
     def latlon_to_utm(self, lat, lon):
         utm_coords = utm.from_latlon(lat, lon)
-        return utm_coords[1], utm_coords[0]  # return northing, easting
+        return utm_coords[0], utm_coords[1]  # return Easting, Northing (ENU standard)
 
     def publish_state(self):
         # Publish the Kalman coordinates
@@ -105,33 +105,47 @@ class KalmanFilterNode:
         t_msg = msg.header.stamp.to_sec()
 
         if not self.initialized:
-            north, east = self.latlon_to_utm(msg.latitude, msg.longitude)
-            self.kf.x[0], self.kf.x[1] = north, east
-            self.kf.x[2], self.kf.x[3], self.kf.x[4] = 0.0, yaw_std, 0.0
+            # Initialize with Easting, Northing
+            e, n = self.latlon_to_utm(msg.latitude, msg.longitude)
+            self.origin_e = e
+            self.origin_n = n
+            self.kf.x[0, 0] = 0.0 # Relative E
+            self.kf.x[1, 0] = 0.0 # Relative N
+            self.kf.x[2, 0], self.kf.x[3, 0], self.kf.x[4, 0] = 0.0, yaw_std, 0.0
             self.prev_time = t_msg
             self.initialized = True
             return
 
-        # 1. Predict (Advance to message time)
-        self.update_dt_and_predict(t_msg)
+        # Update dt and predict
+        if not self.update_dt_and_predict(t_msg):
+            return # Skip if dt is not valid
 
-        north, east = self.latlon_to_utm(msg.latitude, msg.longitude)
-        z_pos = np.array([[north], [east]])
-        z_yaw = np.array([[yaw_std]])
+        # 1. Prediction with IMU (already done by update_dt_and_predict)
+        # self.kf.predict_ekf(omega_measured=self.current_yaw_rate) # This is now handled by update_dt_and_predict
+
+        # 2. Update with GPS Position
+        e, n = self.latlon_to_utm(msg.latitude, msg.longitude)
         
-        # 2. Update Position
+        # if self.origin_x is None: # This block is now handled in initialization
+        #     self.origin_x = e
+        #     self.origin_y = n
+            
+        rel_e = e - self.origin_e
+        rel_n = n - self.origin_n
+        
+        z_pos = np.array([[rel_e], [rel_n]]) # Now E, N
         self.kf.update(z_pos, self.kf.H_pos, self.kf.R_pos)
         
-        # 3. Handle GPS course fusion buffer
-        self.hist_gps.append([north, east])
+        # 3. Handle Course Fusion (using GPS history)
+        self.hist_gps.append((rel_e, rel_n)) # Stores E, N
         stride = 50
         is_fusing_course = False
         
         if len(self.hist_gps) > stride:
-            curr_n, curr_e = self.hist_gps[-1]
-            past_n, past_e = self.hist_gps[-stride]
-            dn, de = curr_n - past_n, curr_e - past_e
-            dist = math.sqrt(dn**2 + de**2)
+            curr_e, curr_n = self.hist_gps[-1]
+            past_e, past_n = self.hist_gps[-stride]
+            de, dn = curr_e - past_e, curr_n - past_n # Delta East, Delta North
+            dist = math.sqrt(de**2 + dn**2)
             est_v = self.kf.x[2, 0]
             
             moved_enough = dist > self.min_geometry_distance
@@ -145,6 +159,7 @@ class KalmanFilterNode:
                 self.kf.update(z_course, self.kf.H_yaw, np.eye(1) * self.course_fusion_trust, angle_indices=[0])
 
         # 4. Sensor Update (Coasting)
+        z_yaw = np.array([[yaw_std]])
         r_yaw_active = 1.0 if is_fusing_course else 100.0
         self.kf.update(z_yaw, self.kf.H_yaw, np.eye(1) * r_yaw_active, angle_indices=[0])
 

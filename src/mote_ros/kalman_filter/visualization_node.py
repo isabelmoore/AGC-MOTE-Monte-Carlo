@@ -21,8 +21,8 @@ class VisualizationNode:
         rospy.Subscriber('kalman_state', State, self.kalman_callback)
         rospy.Subscriber('/vectornav/INS', Ins, self.ins_callback)
         
-        self.origin_x = None
-        self.origin_y = None
+        self.origin_e = None
+        self.origin_n = None
         
         self.current_raw_x = None
         self.current_raw_y = None
@@ -38,12 +38,12 @@ class VisualizationNode:
         lat, lon = msg.latitude, msg.longitude
         utm_e, utm_n, _, _ = utm.from_latlon(lat, lon)
         
-        if self.origin_x is None:
-            self.origin_x = utm_n
-            self.origin_y = utm_e
+        if self.origin_e is None:
+            self.origin_n = utm_n
+            self.origin_e = utm_e
             
-        self.current_raw_x = utm_n - self.origin_x
-        self.current_raw_y = utm_e - self.origin_y
+        self.current_raw_x = utm_e - self.origin_e # Easting is X
+        self.current_raw_y = utm_n - self.origin_n # Northing is Y
         
         # 2. Raw Yaw for Red Arrow
         yaw_rad = math.radians(msg.yaw)
@@ -133,10 +133,11 @@ class VisualizationNode:
         marker_array.markers.append(filt_marker)
 
         # 4. Course Truth (Blue Arrow) - Calculated from raw pos delta
-        if len(self.hist_pos) > 50:
-            past_x, past_y = self.hist_pos[0]
-            dx, dy = x - past_x, y - past_y
-            if math.hypot(dx, dy) > 0.1:
+        # Using a shorter 20-point window (0.2s) for better responsiveness in RViz
+        if len(self.hist_pos) > 20:
+            past_e, past_n = self.hist_pos[0]
+            de, dn = x - past_e, y - past_n
+            if math.hypot(de, dn) > 0.2:
                 cog_marker = Marker()
                 cog_marker.header.frame_id = "map"
                 cog_marker.header.stamp = now
@@ -146,7 +147,7 @@ class VisualizationNode:
                 cog_marker.pose.position.x = x
                 cog_marker.pose.position.y = y
                 cog_marker.pose.position.z = 2.6
-                cog_angle = math.atan2(dy, dx)
+                cog_angle = math.atan2(dn, de)
                 q_cog = tf.transformations.quaternion_from_euler(0, 0, cog_angle)
                 cog_marker.pose.orientation = Quaternion(*q_cog)
                 cog_marker.scale.x, cog_marker.scale.y, cog_marker.scale.z = 4.0, 0.1, 0.1
@@ -165,41 +166,6 @@ class VisualizationNode:
         sun.type = Marker.SPHERE; sun.pose.position.x, sun.pose.position.y, sun.pose.position.z = 150, 150, 80
         sun.scale.x, sun.scale.y, sun.scale.z = 25, 25, 25
         sun.color = ColorRGBA(1.0, 0.9, 0.0, 1.0); marker_array.markers.append(sun)
-
-        # 6. YAW BARS (Poor Man's Plotter)
-        # We will draw 3 bars relative to the car to show the angles
-        # Normalized angle display (0.0 to 1.0 height for 0 to 360 deg)
-        # Red Bar (Raw)
-        bar_r = Marker()
-        bar_r.header.frame_id = "base_link"; bar_r.header.stamp = now; bar_r.ns = "plot"; bar_r.id = 200
-        bar_r.type = Marker.CUBE; bar_r.pose.position.x, bar_r.pose.position.y = 0, 2.0
-        h_r = (self.current_raw_yaw + math.pi) / (2*math.pi) * 5.0 # Height 0-5m
-        bar_r.pose.position.z = h_r / 2.0
-        bar_r.scale.x, bar_r.scale.y, bar_r.scale.z = 0.5, 0.5, h_r if h_r > 0.01 else 0.01
-        bar_r.color = ColorRGBA(1,0,0,1); marker_array.markers.append(bar_r)
-
-        # Green Bar (EKF)
-        bar_g = Marker()
-        bar_g.header.frame_id = "base_link"; bar_g.header.stamp = now; bar_g.ns = "plot"; bar_g.id = 201
-        bar_g.type = Marker.CUBE; bar_g.pose.position.x, bar_g.pose.position.y = 1.0, 2.0
-        h_g = (yaw + math.pi) / (2*math.pi) * 5.0 
-        bar_g.pose.position.z = h_g / 2.0
-        bar_g.scale.x, bar_g.scale.y, bar_g.scale.z = 0.5, 0.5, h_g if h_g > 0.01 else 0.01
-        bar_g.color = ColorRGBA(0,1,0,1); marker_array.markers.append(bar_g)
-        
-        # Blue Bar (Truth) - Only if moving
-        if len(self.hist_pos) > 50:
-            past_x, past_y = self.hist_pos[0]
-            dx, dy = x - past_x, y - past_y
-            if math.hypot(dx, dy) > 0.1:
-                cog_angle = math.atan2(dy, dx)
-                bar_b = Marker()
-                bar_b.header.frame_id = "base_link"; bar_b.header.stamp = now; bar_b.ns = "plot"; bar_b.id = 202
-                bar_b.type = Marker.CUBE; bar_b.pose.position.x, bar_b.pose.position.y = 2.0, 2.0
-                h_b = (cog_angle + math.pi) / (2*math.pi) * 5.0 
-                bar_b.pose.position.z = h_b / 2.0
-                bar_b.scale.x, bar_b.scale.y, bar_b.scale.z = 0.5, 0.5, h_b if h_b > 0.01 else 0.01
-                bar_b.color = ColorRGBA(0,0,1,1); marker_array.markers.append(bar_b)
 
         self.marker_pub.publish(marker_array)
 

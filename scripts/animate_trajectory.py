@@ -93,8 +93,8 @@ def animate_results():
     arrow_cog_line, = ax_map.plot([], [], 'b-', lw=2, label='Course Truth (20m)')
     
     # Set Limits (Map)
-    min_e, max_e = np.min(data_dec[:, 2]), np.max(data_dec[:, 2]) # East is X
-    min_n, max_n = np.min(data_dec[:, 1]), np.max(data_dec[:, 1]) # North is Y
+    min_e, max_e = np.min(data_dec[:, 1]), np.max(data_dec[:, 1]) # East is index 1
+    min_n, max_n = np.min(data_dec[:, 2]), np.max(data_dec[:, 2]) # North is index 2
     margin = 50
     ax_map.set_xlim(min_e - margin, max_e + margin)
     ax_map.set_ylim(min_n - margin, max_n + margin)
@@ -135,8 +135,8 @@ def animate_results():
     stride = 100 
     if len(data) > stride:
         t_sub = time_arr[::stride]
-        x_sub = data[::stride, 2]
-        y_sub = data[::stride, 1]
+        x_sub = data[::stride, 1] # East
+        y_sub = data[::stride, 2] # North
         
         dx = np.diff(x_sub)
         dy = np.diff(y_sub)
@@ -216,8 +216,8 @@ def animate_results():
     
     def update(i):
         # Easting (X), Northing (Y)
-        ei = data_dec[i, 2] 
-        ni = data_dec[i, 1]
+        ei = data_dec[i, 1] 
+        ni = data_dec[i, 2] 
         yawi = data_dec[i, 4] # Corrected
         raw_yawi = data_dec[i, 6] # Raw
         ti = data_dec[i, 0]
@@ -225,7 +225,7 @@ def animate_results():
         bi = data_dec[i, 5] # Bias
         
         # Trail
-        trail_line.set_data(data_dec[:i+1, 2], data_dec[:i+1, 1])
+        trail_line.set_data(data_dec[:i+1, 1], data_dec[:i+1, 2])
         
         # Marker (Map)
         robot_marker.set_data([ei], [ni])

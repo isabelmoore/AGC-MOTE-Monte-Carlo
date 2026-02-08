@@ -87,14 +87,9 @@ def analyze_bag(bag_path):
     init_lat, init_lon = init_msg['latitude'], init_msg['longitude']
     init_utm_e, init_utm_n, _, _ = utm.from_latlon(init_lat, init_lon)
     
-    # Initialize State: [x, y, v, theta, bias]
-    # Yaw conversion: NED (0=N, CW) -> ENU (0=E, CCW)
-    init_yaw_rad = np.radians(init_msg['yaw'])
-    init_yaw_std = np.pi/2.0 - init_yaw_rad
-    init_yaw_std = (init_yaw_std + np.pi) % (2.0 * np.pi) - np.pi
-    
-    kf.x = np.array([[init_utm_n], [init_utm_e], [0.0], [init_yaw_std], [0.0]])
-    print(f"Initialized at N:{init_utm_n:.2f}, E:{init_utm_e:.2f}, Yaw:{init_yaw_std:.2f}")
+    # Initialize State: [E, N, v, theta, bias]
+    kf.x = np.array([[init_utm_e], [init_utm_n], [0.0], [init_yaw_std], [0.0]])
+    print(f"Initialized at E:{init_utm_e:.2f}, N:{init_utm_n:.2f}, Yaw:{init_yaw_std:.2f}")
 
     # Initialize Matrices (matching node usage)
     kf.R_pos = np.eye(2) * 1.0
@@ -166,7 +161,7 @@ def analyze_bag(bag_path):
             # 2. Update Position (GPS)
             lat, lon = event['latitude'], event['longitude']
             utm_e, utm_n, _, _ = utm.from_latlon(lat, lon)
-            z_pos = np.array([[utm_n], [utm_e]]) 
+            z_pos = np.array([[utm_e], [utm_n]]) # ENU: East, North
             kf.update(z_pos, kf.H_pos, kf.R_pos)
             
             # 3. Process Yaw (Sensor)
@@ -213,7 +208,7 @@ def analyze_bag(bag_path):
             kf.update(z_yaw, kf.H_yaw, np.eye(1)*r_yaw_active, angle_indices=[0])
             
             # Store for history
-            hist_gps.append([t, utm_n, utm_e])
+            hist_gps.append([t, utm_e, utm_n]) # Store E, N
             
             # 4. Course Fusion
             stride = 50
@@ -266,8 +261,8 @@ def analyze_bag(bag_path):
     # 1. Text Output
     res_file = os.path.join(results_dir, 'kalman_filter_results.txt')
     with open(res_file, 'w') as f:
-        # Update Header
-        f.write('Timestamp, N, E, V, Yaw, Bias, Yaw_Raw, Yaw_Rate\n')
+        # Update Header: Timestamp, E, N, ...
+        f.write('Timestamp, E, N, V, Yaw, Bias, Yaw_Raw, Yaw_Rate\n')
         for row in hist_est:
             # Row has 8 elements now
             f.write(f"{row[0]:.4f}, {row[1]:.4f}, {row[2]:.4f}, {row[3]:.4f}, {row[4]:.4f}, {row[5]:.4f}, {row[6]:.4f}, {row[7]:.4f}\n")
