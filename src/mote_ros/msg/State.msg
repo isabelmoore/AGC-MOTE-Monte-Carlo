@@ -1,5 +1,9 @@
+uint32 message_seq
 float64 x_position
 float64 y_position
 float64 velocity
 float64 yaw
 float64 yaw_rate
+float64 rate_bias
+float64 head_bias
+float64 acceleration

@@ -58,7 +58,7 @@ def animate_results():
     print(f"Loaded {len(data)} points. Creating animation...")
     
     # Decimate for speed (plot every 500th point)
-    decimate = 100
+    decimate = 300
     data_dec = data[::decimate]
     
     # Setup Figure with 3 subplots (Map, Yaw, Velocity)
@@ -105,7 +105,7 @@ def animate_results():
     # --- Yaw Plot Setup ---
     time_arr = data[:, 0]
     ekf_yaw_deg = np.degrees(data[:, 4])
-    raw_yaw_deg = np.degrees(data[:, 6])
+    raw_yaw_deg = np.degrees(data[:, 8])
     
     # Helper for cleaning wraps
     def clean_for_plotting(t, y, threshold=50):
@@ -127,8 +127,12 @@ def animate_results():
     ax_yaw.plot(ekf_t, ekf_y, 'g-', lw=2, label='EKF Yaw')
     
     # Clean Raw INS
-    raw_t, raw_y = clean_for_plotting(time_arr, raw_yaw_deg)
-    ax_yaw.plot(raw_t, raw_y, 'r--', alpha=0.6, label='Raw INS Yaw')
+    # Convert Raw NED Yaw to ENU
+    # Formula: ENU = (90 - NED + 180) % 360 - 180
+    raw_yaw_enu = (90 - raw_yaw_deg + 180) % 360 - 180
+    
+    raw_t, raw_y = clean_for_plotting(time_arr, raw_yaw_enu)
+    ax_yaw.plot(raw_t, raw_y, 'r--', alpha=0.6, label='Raw INS Yaw (ENU)')
     
     # Calculate Course Truth for plot
     # Use a longer stride to filter out GPS noise when moving slowly
@@ -162,7 +166,11 @@ def animate_results():
             # --- Reverse Detection ---
             # Interpolate Raw Yaw to valid_t to compare
             # Subsampled raw yaw:
-            raw_yaw_sub = data[::stride, 6][:-1][valid_mask] # Matches valid_t size
+            # Index 8 is RawYaw (NED) in analyze_bag_data.py
+            raw_yaw_ned_sub = data[::stride, 8][:-1][valid_mask]
+            # Convert to ENU for plotting
+            raw_yaw_sub = np.pi/2.0 - raw_yaw_ned_sub
+            raw_yaw_sub = (raw_yaw_sub + np.pi) % (2 * np.pi) - np.pi
             
             # Difference between Course and Raw Yaw
             diff = np.abs(np.degrees(np.arctan2(np.sin(cog_smooth_rad - raw_yaw_sub), np.cos(cog_smooth_rad - raw_yaw_sub))))
@@ -192,37 +200,41 @@ def animate_results():
     # --- Velocity Plot Setup ---
     # Plot full velocity history as background
     ax_vel.plot(data[:, 0], data[:, 3], 'k-', alpha=0.3, lw=1, label='Velocity')
-    ax_vel.axhline(0.3, color='m', linestyle='--', alpha=0.5, label='Fusion Threshold (0.3m/s)')
-    
-    # Moving marker for velocity
-    vel_marker, = ax_vel.plot([], [], 'ro', ms=6, label='Current Speed')
-    
     ax_vel.set_ylabel('Velocity (m/s)')
     ax_vel.set_xlabel('Time (s)')
-    ax_vel.set_title('Velocity & Yaw Bias Profile')
-    ax_vel.legend(loc='upper left', fontsize='small')
+    ax_vel.set_title('Velocity & Acceleration Profile')
     ax_vel.grid(True)
+    ax_vel.axhline(0.1, color='m', linestyle='--', alpha=0.5, label='Fusion Threshold (0.1m/s)')
     
-    # --- Yaw Bias Plot (Twin Axis) ---
-    ax_bias = ax_vel.twinx()
-    # Plot full Bias history as background
-    ax_bias.plot(data[:, 0], data[:, 5], 'tab:orange', alpha=0.6, lw=1.5, label='Yaw Bias (rad/s)')
-    # Moving marker for Bias
-    bias_marker, = ax_bias.plot([], [], 'o', color='tab:orange', ms=6, label='Current Bias')
+    # --- Acceleration Plot (Twin Axis) ---
+    ax_accel = ax_vel.twinx()
+    # Index 7 is Acceleration
+    ax_accel.plot(data[:, 0], data[:, 7], 'tab:red', alpha=0.6, lw=1.5, label='Accel (m/s²)')
+    ax_accel.set_ylabel('Accel (m/s²)', color='tab:red')
+    ax_accel.tick_params(axis='y', labelcolor='tab:red')
     
-    ax_bias.set_ylabel('Yaw Bias (rad/s)', color='tab:orange')
-    ax_bias.tick_params(axis='y', labelcolor='tab:orange')
-    ax_bias.legend(loc='upper right', fontsize='small')
+    # Moving markers
+    vel_marker, = ax_vel.plot([], [], 'ko', ms=6, label='Current Speed')
+    accel_marker, = ax_accel.plot([], [], 'ro', ms=6, label='Current Accel')
     
+    # Combine legends
+    lines_v, labels_v = ax_vel.get_legend_handles_labels()
+    lines_a, labels_a = ax_accel.get_legend_handles_labels()
+    ax_vel.legend(lines_v + lines_a, labels_v + labels_a, loc='upper left', fontsize='small')
+
     def update(i):
         # Easting (X), Northing (Y)
         ei = data_dec[i, 1] 
         ni = data_dec[i, 2] 
         yawi = data_dec[i, 4] # Corrected
-        raw_yawi = data_dec[i, 6] # Raw
+        # Index 8 is Raw NED
+        raw_yawi_ned = data_dec[i, 8]
+        raw_yawi = np.pi/2.0 - raw_yawi_ned
+        raw_yawi = (raw_yawi + np.pi) % (2 * np.pi) - np.pi
+        
         ti = data_dec[i, 0]
         vi = data_dec[i, 3] # Velocity
-        bi = data_dec[i, 5] # Bias
+        ai = data_dec[i, 7] # Accel
         
         # Trail
         trail_line.set_data(data_dec[:i+1, 1], data_dec[:i+1, 2])
@@ -230,11 +242,9 @@ def animate_results():
         # Marker (Map)
         robot_marker.set_data([ei], [ni])
         
-        # Marker (Velocity)
+        # Markers
         vel_marker.set_data([ti], [vi])
-        
-        # Marker (Bias)
-        bias_marker.set_data([ti], [bi])
+        accel_marker.set_data([ti], [ai])
         
         # Line (Yaw)
         yaw_time_line.set_xdata([ti, ti])
@@ -247,16 +257,18 @@ def animate_results():
         V = len_vec * np.sin(yawi)
         arrow_line.set_data([ei, ei+U], [ni, ni+V])
         
-        # 2. Raw (Red)
-        U_raw = len_vec * np.cos(raw_yawi)
-        V_raw = len_vec * np.sin(raw_yawi)
+        # raw_yawi is already converted to ENU above
+        raw_yaw_enu = raw_yawi
+        
+        U_raw = len_vec * np.cos(raw_yaw_enu)
+        V_raw = len_vec * np.sin(raw_yaw_enu)
         arrow_raw_line.set_data([ei, ei+U_raw], [ni, ni+V_raw])
         
         # 3. Course Over Ground (Blue) - "Truth" from movement
         if i > 0:
             # Look back 1 frame (or more if needed)
-            prev_ei = data_dec[i-1, 2]
-            prev_ni = data_dec[i-1, 1]
+            prev_ei = data_dec[i-1, 1]
+            prev_ni = data_dec[i-1, 2]
             dx = ei - prev_ei
             dy = ni - prev_ni
             
@@ -272,8 +284,22 @@ def animate_results():
         else:
             arrow_cog_line.set_data([], [])
             
-        time_text.set_text(f'Time: {ti:.1f}s | Yaw: {np.degrees(yawi):.1f} deg | Vel: {vi:.2f} m/s | Rate: {data_dec[i, 7]:.3f} rad/s')
-        return trail_line, robot_marker, arrow_line, arrow_raw_line, arrow_cog_line, time_text, vel_marker, yaw_time_line, bias_marker
+        time_text.set_text(f'Time: {ti:.1f}s | Yaw: {np.degrees(yawi):.1f} deg | Vel: {vi:.2f} m/s | Accel: {ai:.3f} m/s²')
+        # Print Debug Info
+        if i % 10 == 0 or i == len(data_dec) - 1:
+            # Print Raw in ENU for comparison
+            raw_deg_enu = np.degrees(raw_yaw_enu)
+            # Wrap to [-180, 180] for readability
+            raw_deg_enu = (raw_deg_enu + 180) % 360 - 180
+            
+            ekf_deg = np.degrees(yawi)
+            cog_str = "NaN"
+            if 'cog_angle' in locals():
+                cog_str = f"{np.degrees(cog_angle):.1f}"
+            
+            print(f"Frame {i}: Time={ti:.1f}s | EKF={ekf_deg:.1f} | Raw(ENU)={raw_deg_enu:.1f} | Course={cog_str}", flush=True)
+
+        return trail_line, robot_marker, arrow_line, arrow_raw_line, arrow_cog_line, time_text, vel_marker, yaw_time_line, accel_marker
 
 
     ani = animation.FuncAnimation(fig, update, frames=len(data_dec), interval=30, blit=True)

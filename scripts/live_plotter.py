@@ -22,29 +22,30 @@ class LiveYawPlotter:
         
         rospy.Subscriber('yaw_comparison_data', Float32MultiArray, self.callback)
         
-        # Setup Plot (Premium Deep Space Theme)
-        plt.style.use('dark_background')
+        # Setup Plot (Premium Light High-Contrast Theme)
+        plt.style.use('default') 
         self.fig, self.ax = plt.subplots(figsize=(12, 7))
-        self.fig.patch.set_facecolor('#0a0a0a')
-        self.ax.set_facecolor('#0a0a0a')
+        self.fig.patch.set_facecolor('#ffffff')
+        self.ax.set_facecolor('#ffffff')
         
-        self.line_raw, = self.ax.plot([], [], color='#ff4b5c', label='Raw (INS)', alpha=0.5, lw=1)
-        self.line_ekf, = self.ax.plot([], [], color='#00e676', label='EKF (Standard)', lw=2.5)
-        self.line_truth, = self.ax.plot([], [], color='#00b0ff', label='Ground Truth (Course)', lw=1.5, ls='--')
+        self.line_raw, = self.ax.plot([], [], color='#d32f2f', label='Raw (INS)', alpha=0.6, lw=1)
+        self.line_ekf, = self.ax.plot([], [], color='#2e7d32', label='EKF (Standard)', lw=2.5)
+        self.line_truth, = self.ax.plot([], [], color='#0277bd', label='Ground Truth (Course)', lw=1.5, ls='--')
         
-        self.ax.set_ylim(-math.pi - 0.2, math.pi + 0.2)
-        self.ax.set_title("LIVE SENSOR FUSION DIAGNOSTICS", fontsize=14, fontweight='bold', pad=20, color='#ffffff')
-        self.ax.set_xlabel("MISSION ELAPSED TIME (S)", fontsize=10, color='#aaaaaa')
-        self.ax.set_ylabel("HEADING (RADIANS)", fontsize=10, color='#aaaaaa')
+        # DEGREE LIMITS: -190 to 190
+        self.ax.set_ylim(-190, 190)
+        self.ax.set_title("LIVE SENSOR FUSION DIAGNOSTICS (DEGREES)", fontsize=14, fontweight='bold', pad=20, color='#222222')
+        self.ax.set_xlabel("MISSION ELAPSED TIME (S)", fontsize=10, color='#555555')
+        self.ax.set_ylabel("HEADING (DEGREES)", fontsize=10, color='#555555')
         
-        self.ax.legend(loc='upper right', frameon=True, facecolor='#1a1a1a', edgecolor='#333333', fontsize='small')
-        self.ax.grid(True, color='#333333', linestyle=':', alpha=0.5)
+        self.ax.legend(loc='upper right', frameon=True, facecolor='#f5f5f5', edgecolor='#cccccc', fontsize='small')
+        self.ax.grid(True, color='#dddddd', linestyle=':', alpha=0.8)
         
-        # Remove top/right spines
+        # Axis lines
         self.ax.spines['top'].set_visible(False)
         self.ax.spines['right'].set_visible(False)
-        self.ax.spines['left'].set_color('#333333')
-        self.ax.spines['bottom'].set_color('#333333')
+        self.ax.spines['left'].set_color('#aaaaaa')
+        self.ax.spines['bottom'].set_color('#aaaaaa')
 
     def callback(self, msg):
         if len(msg.data) < 3: return

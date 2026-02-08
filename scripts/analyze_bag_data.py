@@ -87,86 +87,79 @@ def analyze_bag(bag_path):
     init_lat, init_lon = init_msg['latitude'], init_msg['longitude']
     init_utm_e, init_utm_n, _, _ = utm.from_latlon(init_lat, init_lon)
     
-    # Initialize State: [E, N, v, theta, bias]
+    # Initialize State: [E, N, v, theta, rate_bias, head_bias, a]
     # Yaw conversion: NED (0=N, CW) -> ENU (0=E, CCW)
     init_yaw_rad = np.radians(init_msg['yaw'])
     init_yaw_std = np.pi/2.0 - init_yaw_rad
     init_yaw_std = (init_yaw_std + np.pi) % (2.0 * np.pi) - np.pi
     
-    kf.x = np.array([[init_utm_e], [init_utm_n], [0.0], [init_yaw_std], [0.0]])
+    # [E, N, v, theta, rate_bias, head_bias, a]
+    kf.x = np.array([[init_utm_e], [init_utm_n], [0.0], [init_yaw_std], [0.0], [0.0], [0.0]])
     print(f"Initialized at E:{init_utm_e:.2f}, N:{init_utm_n:.2f}, Yaw:{init_yaw_std:.2f}")
 
-    # Initialize Matrices (matching node usage)
-    kf.R_pos = np.eye(2) * 1.0
-    kf.R_vel = np.eye(1) * 0.1
-    kf.R_yaw = np.eye(1) * 0.1
-    # Very stable bias to bridge gaps
-    kf.Q[4, 4] = 0.00001 
+    # Initialize Matrices
+    kf.R_pos = np.eye(2) * 15.0 # ULTRA smoothing for jittery GPS
+    kf.R_vel = np.eye(1) * 1.0
+    kf.R_yaw = np.eye(1) * 0.5  # De-weight sensor slightly more
+    # Noise Tuning - Phase 7: Ultra-Stability
+    kf.Q[3, 3] = 0.0001     # Tightest heading (Heavy inertia)
+    kf.Q[4, 4] = 0.000001   # Ultra-stable rate bias
+    kf.Q[5, 5] = 0.0000001  # Ultra-stable heading bias
+    kf.Q[6, 6] = 0.01       # Reduced accel noise for smoothness
     
-    # Define H_yawrate if not present
-    if not hasattr(kf, 'H_yawrate'):
-        kf.H_yawrate = np.zeros((1, 5))
-        kf.H_yawrate[0, 4] = 1 # Update bias? Or Update yaw rate? 
-        # Wait, yaw rate = (yaw - prev_yaw) / dt... 
-        # If we measure yaw rate directly (imu), we can update bias.
-        # Predicted Yaw Rate = (Not in state directly?)
-        # Let's assume we skip yawrate update or map it to bias?
-        # Node usage: self.kf.update(z_yawrate, self.kf.H_yawrate, self.kf.R_yawrate)
-        # Check node for H_yawrate definition? 
-        # I'll enable it but might be zeros.
-        pass
-
     # History Storage
     hist_est = []
     hist_gps = []
     hist_ins_yaw = []
+    innovations_yaw = [] # PHASE 7: Jitter Tracking
     
     last_t = events[0]['t']
-    
-    # Process Loop
     current_yaw_rate = 0.0
+    current_linear_v = 0.0
+    
     # --- Tuning Parameters ---   
-    velocity_fusion_threshold = 0.1
-    turn_fusion_threshold = 0.05 
-    min_geometry_distance = 0.1
-    course_fusion_trust = 0.002 # MUCH stronger trust to bridge the gap
+    velocity_fusion_threshold = 0.1 
+    turn_fusion_threshold = 0.05    
+    min_geometry_distance = 0.15    
+    course_fusion_trust = 0.2       # ULTRA de-weight of jumpy Course
     # -------------------------
     
-    print("\n--- Current Tuning Parameters ---")
+    print("\n--- Phase 7 Tuning Parameters (Ultra-Smoothing) ---")
     print(f"Velocity Fusion Threshold: {velocity_fusion_threshold} m/s")
-    print(f"Turn Fusion Threshold:     {turn_fusion_threshold} rad/s (~5.7 deg/s)")
-    print(f"Min Geometry distance:     {min_geometry_distance} m")
     print(f"Course Fusion Trust (R):   {course_fusion_trust}")
-    print("---------------------------------\n")
+    print(f"Heading Process Noise (Q): {kf.Q[3,3]}")
+    print("---------------------------------------------------\n")
     
     for i, event in enumerate(events):
         t = event['t']
         dt = t - last_t
         last_t = t
         
-        # 1. Predict (if time advanced)
+        # 1. Predict
         if dt > 0:
             kf.dt = dt
-            # Propagate
-            # Use stored yaw rate for prediction if needed, but the filter class might handle it
             pass 
 
         if event['type'] == 'TWIST':
-            linear_x = event['linear_x']
-            angular_z = event['angular_z']
-            current_yaw_rate = angular_z
+            current_linear_v = event['linear_x']
+            current_yaw_rate = event['angular_z']
             
-            z_vel = np.array([[linear_x]])
+            z_vel = np.array([[current_linear_v]])
             kf.update(z_vel, kf.H_vel, kf.R_vel)
             
+            # --- Zero-Velocity Constraint ---
+            if abs(current_linear_v) < 0.01:
+                kf.x[2, 0] = 0.0 
+                kf.x[6, 0] = 0.0 
+            
         elif event['type'] == 'INS':
-            # 1. Predict (Advance Time) - USE CURRENT YAW RATE
+            # 1. Predict
             kf.predict_ekf(omega_measured=current_yaw_rate) 
             
-            # 2. Update Position (GPS)
+            # 2. Update Position
             lat, lon = event['latitude'], event['longitude']
             utm_e, utm_n, _, _ = utm.from_latlon(lat, lon)
-            z_pos = np.array([[utm_e], [utm_n]]) # ENU: East, North
+            z_pos = np.array([[utm_e], [utm_n]]) 
             kf.update(z_pos, kf.H_pos, kf.R_pos)
             
             # 3. Process Yaw (Sensor)
@@ -174,81 +167,52 @@ def analyze_bag(bag_path):
             yaw_std = np.pi/2.0 - yaw_rad
             yaw_std = (yaw_std + np.pi) % (2.0 * np.pi) - np.pi
             
-            # 4. Course Fusion & Coasting Logic
-            stride = 50
-            is_fusing_course = False
-            gps_course = None
-            
-            if len(hist_gps) > stride:
-                curr_n, curr_e = hist_gps[-1][1], hist_gps[-1][2]
-                past_n, past_e = hist_gps[-stride][1], hist_gps[-stride][2]
-                dn = curr_n - past_n
-                de = curr_e - past_e
-                dist = np.hypot(dn, de)
-                est_v = kf.x[2, 0]
-                
-                moved_enough = dist > min_geometry_distance
-                is_fast = est_v > velocity_fusion_threshold
-                is_turning = abs(current_yaw_rate) > turn_fusion_threshold
-                
-                if moved_enough and (is_fast or is_turning):
-                    gps_course = np.arctan2(dn, de)
-                    is_fusing_course = True
-                    
-                    # FUSE TRUTH (Strong Anchor)
-                    z_course = np.array([[gps_course]])
-                    kf.update(z_course, kf.H_yaw, np.eye(1)*course_fusion_trust, angle_indices=[0])
-
-            # 5. SENSOR UPDATE (Red Line Handling)
-            z_yaw = np.array([[yaw_std]])
-            if is_fusing_course:
-                # While fusing truth, treat the red line as weak background
-                r_yaw_active = 1.0
-            else:
-                # GAPS/COASTING: Truth is gone. 
-                # Trust the Red Line ALMOST ZERO (R=100) so we don't snap back.
-                # The filter will "coast" on its stable bias + gyro.
-                r_yaw_active = 100.0
-                
-            kf.update(z_yaw, kf.H_yaw, np.eye(1)*r_yaw_active, angle_indices=[0])
-            
-            # Store for history
-            hist_gps.append([t, utm_e, utm_n]) # Store E, N
-            
             # 4. Course Fusion
             stride = 50
-            gps_course = None
+            is_fusing_course = False
+            
             if len(hist_gps) > stride:
-                curr_n, curr_e = hist_gps[-1][1], hist_gps[-1][2]
-                past_n, past_e = hist_gps[-stride][1], hist_gps[-stride][2]
-                dn = curr_n - past_n
-                de = curr_e - past_e
-                dist = np.hypot(dn, de)
-                
+                curr_e, curr_n = hist_gps[-1][1], hist_gps[-1][2]
+                past_e, past_n = hist_gps[-stride][1], hist_gps[-stride][2]
+                de, dn = curr_e - past_e, curr_n - past_n
+                dist = np.hypot(de, dn)
                 est_v = kf.x[2, 0]
                 
-                # Dynamic Logic Restored & Tuned:
-                # 1. Geometry Check: Moved > 0.15m (15cm) in ~0.5s.
-                # 2. Activity Check: Fuse if Fast (>0.3m/s) OR Turning (YawRate > 0.1).
-                
-                moved_enough = dist > 0.15
-                is_fast = est_v > 0.3
-                is_turning = abs(current_yaw_rate) > 0.1 
-                
-                if moved_enough and (is_fast or is_turning):
-                    gps_course = np.arctan2(dn, de) # ENU: atan2(North, East)
+                if dist > min_geometry_distance and (abs(est_v) > velocity_fusion_threshold or abs(current_yaw_rate) > turn_fusion_threshold):
+                    gps_course = np.arctan2(dn, de) 
+                    if est_v < -0.1:
+                        gps_course = (gps_course + np.pi + np.pi) % (2.0 * np.pi) - np.pi
                     
-                    # FUSE IT!
+                    is_fusing_course = True
                     z_course = np.array([[gps_course]])
-                    # Trust this update SUPER heavily (R=0.001)
-                    # This is our actual 'Truth' anchor.
-                    kf.update(z_course, kf.H_yaw, np.eye(1)*0.001, angle_indices=[0])
+                    innov = kf.update(z_course, kf.H_yaw, np.eye(1)*course_fusion_trust, angle_indices=[0])
+                    innovations_yaw.append(abs(innov[0, 0]))
+
+            # 5. SENSOR UPDATE
+            z_yaw = np.array([[yaw_std]])
+            if is_fusing_course:
+                r_sensor = 100.0 # Pushed back even more
+            else:
+                is_stopped = abs(current_linear_v) < 0.02
+                r_sensor = 200.0 if is_stopped else 20.0 # Heavier filter
+                
+            innov = kf.update(z_yaw, kf.H_sensor, np.eye(1)*r_sensor, angle_indices=[0])
+            innovations_yaw.append(abs(innov[0, 0]))
             
             # Store History
+            hist_gps.append([t, utm_e, utm_n])
             yaw_raw_ned = yaw_rad
-            # Added Yaw Rate (Index 7) to results
-            hist_est.append([t] + kf.x.flatten().tolist() + [yaw_raw_ned, current_yaw_rate])
+            state = kf.x.flatten()
+            hist_est.append([t, state[0], state[1], state[2], state[3], state[4], state[5], state[6], yaw_raw_ned])
             hist_ins_yaw.append([t, yaw_std])
+
+    # ANALYTICS: Jitter Metrics
+    if len(innovations_yaw) > 0:
+        rms_jitter = np.sqrt(np.mean(np.square(innovations_yaw)))
+        print(f"\n--- JITTER ANALYTICS ---")
+        print(f"Heading Innovation RMS: {rms_jitter:.6f} rad ({np.degrees(rms_jitter):.4f} deg)")
+        print(f"Stability Score: {(1.0 - min(rms_jitter, 1.0))*100:.1f}/100")
+        print("------------------------\n")
 
     # Convert and Plot
     hist_est = np.array(hist_est)
@@ -266,25 +230,27 @@ def analyze_bag(bag_path):
     # 1. Text Output
     res_file = os.path.join(results_dir, 'kalman_filter_results.txt')
     with open(res_file, 'w') as f:
-        # Update Header: Timestamp, E, N, ...
-        f.write('Timestamp, E, N, V, Yaw, Bias, Yaw_Raw, Yaw_Rate\n')
+        # Update Header: T, E, N, V, Yaw, RateBias, HeadBias, Accel, RawYaw
+        f.write('Timestamp, E, N, V, Yaw, RateBias, HeadBias, Accel, RawYaw\n')
         for row in hist_est:
-            # Row has 8 elements now
-            f.write(f"{row[0]:.4f}, {row[1]:.4f}, {row[2]:.4f}, {row[3]:.4f}, {row[4]:.4f}, {row[5]:.4f}, {row[6]:.4f}, {row[7]:.4f}\n")
+            # Row has 9 elements
+            f.write(f"{row[0]:.4f}, {row[1]:.4f}, {row[2]:.4f}, {row[3]:.4f}, {row[4]:.4f}, {row[5]:.4f}, {row[6]:.4f}, {row[7]:.4f}, {row[8]:.4f}\n")
     print(f"Results saved to {res_file}")
 
     # 2. Plot
     # Normalize
     if len(hist_gps) > 0:
-        n0, e0 = hist_gps[0, 1], hist_gps[0, 2]
-        hist_gps[:, 1] -= n0
-        hist_gps[:, 2] -= e0
-        hist_est[:, 1] -= n0
-        hist_est[:, 2] -= e0
+        # Index 1 is East (x), Index 2 is North (y)
+        e0, n0 = hist_gps[0, 1], hist_gps[0, 2]
+        hist_gps[:, 1] -= e0
+        hist_gps[:, 2] -= n0
+        hist_est[:, 1] -= e0
+        hist_est[:, 2] -= n0
         
     plt.figure(figsize=(12, 12))
-    plt.plot(hist_gps[:, 2], hist_gps[:, 1], 'k.', alpha=0.3, label='GPS (Zeroed)')
-    plt.plot(hist_est[:, 2], hist_est[:, 1], 'b-', lw=1, alpha=0.5, label='EKF Trajectory')
+    # hist_gps: [t, E, N]
+    plt.plot(hist_gps[:, 1], hist_gps[:, 2], 'k.', alpha=0.3, label='GPS (Zeroed)')
+    plt.plot(hist_est[:, 1], hist_est[:, 2], 'b-', lw=1, alpha=0.5, label='EKF Trajectory')
     
     # Add Heading Arrows (Subsampled)
     # Plot every Nth point to avoid clutter
@@ -293,10 +259,10 @@ def analyze_bag(bag_path):
         sub_est = hist_est[::step]
         
         # Extract components
-        x = sub_est[:, 2] # East
-        y = sub_est[:, 1] # North
+        x = sub_est[:, 1] # East
+        y = sub_est[:, 2] # North
         yaw_corr = sub_est[:, 4]
-        yaw_raw = sub_est[:, 6]
+        yaw_raw = sub_est[:, 8]
         
         # Vector Length (visual)
         vec_len = 20.0
@@ -306,9 +272,10 @@ def analyze_bag(bag_path):
         v_corr = vec_len * np.sin(yaw_corr)
         plt.quiver(x, y, u_corr, v_corr, color='g', angles='xy', scale_units='xy', scale=1, width=0.003, label='Corrected Yaw')
         
-        # Raw (Red)
-        u_raw = vec_len * np.cos(yaw_raw)
-        v_raw = vec_len * np.sin(yaw_raw)
+        # Raw (Red) - Convert NED to ENU
+        yaw_raw_enu = np.pi/2.0 - yaw_raw
+        u_raw = vec_len * np.cos(yaw_raw_enu)
+        v_raw = vec_len * np.sin(yaw_raw_enu)
         plt.quiver(x, y, u_raw, v_raw, color='r', angles='xy', scale_units='xy', scale=1, width=0.003, label='Raw INS Yaw')
         
         # Course Over Ground (Blue) - Data Driven Truth
@@ -344,18 +311,43 @@ def analyze_bag(bag_path):
     # Subplot 1: Yaw
     time_arr = hist_est[:, 0]
     ekf_yaw_deg = np.degrees(hist_est[:, 4])
-    raw_yaw_deg = np.degrees(hist_est[:, 6])
+    raw_yaw_deg = np.degrees(hist_est[:, 8])
     
-    ax1.plot(time_arr, ekf_yaw_deg, 'g-', lw=2, label='EKF Yaw (Corrected)')
-    ax1.plot(time_arr, raw_yaw_deg, 'r--', alpha=0.6, label='Raw INS Yaw (NED)')
+    # Helper to remove vertical lines when wrapping from 180 to -180
+    def remove_wrapping_artifacts(t, y, threshold=180):
+        t_clean = t.copy()
+        y_clean = y.copy()
+        
+        # Find indices where jump > threshold
+        d = np.diff(y_clean)
+        idx = np.where(np.abs(d) > threshold)[0]
+        
+        if len(idx) > 0:
+            # Insert NaNs to break the line
+            out_t = np.insert(t_clean, idx+1, np.nan)
+            out_y = np.insert(y_clean, idx+1, np.nan)
+            return out_t, out_y
+        return t_clean, y_clean
+
+    # 1. EKF Yaw
+    t_ekf, y_ekf = remove_wrapping_artifacts(time_arr, ekf_yaw_deg)
+    ax1.plot(t_ekf, y_ekf, 'g-', lw=2, label='EKF Yaw (Corrected)')
+
+    # 2. Raw INS Yaw (Convert NED -> ENU first)
+    # Original: NED (0=North, CW). ENU (0=East, CCW)
+    # Formula: ENU = (90 - NED + 180) % 360 - 180
+    raw_yaw_enu = (90 - raw_yaw_deg + 180) % 360 - 180
+    
+    t_raw, y_raw = remove_wrapping_artifacts(time_arr, raw_yaw_enu)
+    ax1.plot(t_raw, y_raw, 'r--', alpha=0.6, label='Raw INS Yaw (ENU)')
     
     # Course Over Ground (Blue) - Line Plot
     # Calculate for all points using a stride to filter noise/low-speed
     stride = 50 # Every 50 samples (~0.5s if 100Hz)
     if len(hist_est) > stride:
         t_sub = time_arr[::stride]
-        x_sub = hist_est[::stride, 2] # East
-        y_sub = hist_est[::stride, 1] # North
+        x_sub = hist_est[::stride, 1] # East
+        y_sub = hist_est[::stride, 2] # North
         
         dx = np.diff(x_sub)
         dy = np.diff(y_sub)
@@ -367,8 +359,14 @@ def analyze_bag(bag_path):
         if np.any(valid_mask):
             cog_angles = np.arctan2(dy[valid_mask], dx[valid_mask])
             cog_deg = np.degrees(cog_angles)
+            
+            # Clean up Course lines too
+            t_cog = t_sub[:-1][valid_mask]
+            
+            t_cog_clean, y_cog_clean = remove_wrapping_artifacts(t_cog, cog_deg)
+            
             # Plot corresponding times (offset by 1 due to diff)
-            ax1.plot(t_sub[:-1][valid_mask], cog_deg, 'b-', lw=1.5, alpha=0.7, label='Course Truth (Blue)')
+            ax1.plot(t_cog_clean, y_cog_clean, 'b-', lw=1.5, alpha=0.7, label='Course Truth (Blue)')
     
     ax1.set_ylabel('Yaw (deg)')
     ax1.set_title('Yaw Comparison: Corrected vs Raw vs Course')

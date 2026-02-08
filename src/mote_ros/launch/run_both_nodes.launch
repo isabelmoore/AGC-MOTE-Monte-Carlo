@@ -6,13 +6,6 @@
   <node name="kalman_filter_node" pkg="mote_ros" type="kalman_filter_node.py" output="screen" launch-prefix="python3">
   </node>
 
-  <!-- Launch the Yaw Configure node -->
-  <!-- <node name="yaw_configure_node" pkg="mote_ros" type="yaw_configure_node.py" output="screen" launch-prefix="python3">
-  </node> -->
-
-  <!-- Launch the Health Monitoring node
-  <node name="health_monitor_node" pkg="mote_ros" type="health_monitor_node.py" output="screen" launch-prefix="python3">
-  </node> -->
 
   <!-- Load the Jeep URDF model -->
   <param name="robot_description" textfile="$(find mote_ros)/urdf/vehicle.urdf"/>

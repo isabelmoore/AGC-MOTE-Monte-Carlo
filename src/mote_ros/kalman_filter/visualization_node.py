@@ -19,7 +19,7 @@ class VisualizationNode:
         self.yaw_data_pub = rospy.Publisher('yaw_comparison_data', Float32MultiArray, queue_size=10)
         self.tf_broadcaster = tf.TransformBroadcaster()
         
-        rospy.Subscriber('kalman_state', State, self.kalman_callback)
+        rospy.Subscriber('ekf_v8_final', State, self.kalman_callback, queue_size=100)  # ← INCREASED
         rospy.Subscriber('/vectornav/INS', Ins, self.ins_callback)
         
         self.origin_e = None
@@ -34,8 +34,13 @@ class VisualizationNode:
         self.trail_points = []
         self.last_time = rospy.Time.now()
         
+        self.viz_counter = 0  # ← ADD THIS
+        
+    def ned_to_enu(self, yaw_ned_rad):
+        enu = (math.pi/2.0 - yaw_ned_rad)
+        return (enu + math.pi) % (2.0 * math.pi) - math.pi
+
     def ins_callback(self, msg):
-        # 1. Position: Strictly from Raw Lat/Lon (as in the bag)
         lat, lon = msg.latitude, msg.longitude
         utm_e, utm_n, _, _ = utm.from_latlon(lat, lon)
         
@@ -43,50 +48,48 @@ class VisualizationNode:
             self.origin_n = utm_n
             self.origin_e = utm_e
             
-        self.current_raw_x = utm_e - self.origin_e # Easting is X
-        self.current_raw_y = utm_n - self.origin_n # Northing is Y
+        self.current_raw_x = utm_e - self.origin_e
+        self.current_raw_y = utm_n - self.origin_n
         
-        # 2. Raw Yaw for Red Arrow
-        yaw_rad = math.radians(msg.yaw)
-        self.current_raw_yaw = (math.pi/2.0 - yaw_rad + math.pi) % (2.0 * math.pi) - math.pi
+        yaw_ned_rad = math.radians(msg.yaw)
+        self.current_raw_yaw = self.ned_to_enu(yaw_ned_rad)
 
     def kalman_callback(self, msg):
         now = rospy.Time.now()
         
-        # Clear trail if time jump back detected (Bag Reset)
         if now < self.last_time:
             self.trail_points = []
             self.hist_pos = []
         self.last_time = now
 
-        # We need the raw position to proceed
         if self.current_raw_x is None:
             return
             
-        # COORDINATES: Always Raw GPS
         x = self.current_raw_x
         y = self.current_raw_y
         
-        # HEADING: Use Corrected EKF Yaw
-        yaw = msg.yaw
+        yaw_deg = msg.yaw
+        rospy.loginfo(f"FINAL_IN[{msg.message_seq}]: {msg.yaw:.1f} deg")
+        yaw_rad = math.radians(yaw_deg)
         
-        # Update Trail - No limit now
+        # Update Trail
         self.hist_pos.append((x, y))
         self.trail_points.append((x, y))
         if len(self.hist_pos) > 100: self.hist_pos.pop(0)
 
-        # Publish TF for base_link (Jeep)
-        # Position: Raw | Orientation: Corrected
-        quat = tf.transformations.quaternion_from_euler(0, 0, yaw)
-        self.tf_broadcaster.sendTransform((x, y, 0),
-                                          quat,
-                                          rospy.Time.now(),
-                                          "base_link",
-                                          "map")
+        # TF - Keep this, it's cheap
+        quat = tf.transformations.quaternion_from_euler(0, 0, yaw_rad)
+        self.tf_broadcaster.sendTransform((x, y, 0), quat, now, "base_link", "map")
+        
+        # ===== RATE LIMIT VISUALIZATION =====
+        self.viz_counter += 1
+        if self.viz_counter % 5 != 0:  # Only visualize every 5th message
+            return
+        # ====================================
         
         marker_array = MarkerArray()
 
-        # 1. Path Trail (Red Line)
+        # 1. Path Trail
         path_marker = Marker()
         path_marker.header.frame_id = "map"
         path_marker.header.stamp = now
@@ -101,7 +104,7 @@ class VisualizationNode:
             path_marker.points.append(Point(p[0], p[1], 0.1))
         marker_array.markers.append(path_marker)
         
-        # 2. Raw Yaw (Red Arrow)
+        # 2. Raw Yaw Arrow
         raw_marker = Marker()
         raw_marker.header.frame_id = "map"
         raw_marker.header.stamp = now
@@ -117,7 +120,7 @@ class VisualizationNode:
         raw_marker.color = ColorRGBA(1.0, 0.0, 0.0, 1.0)
         marker_array.markers.append(raw_marker)
 
-        # 3. Filtered Yaw (Green Arrow)
+        # 3. Filtered Yaw Arrow
         filt_marker = Marker()
         filt_marker.header.frame_id = "map"
         filt_marker.header.stamp = now
@@ -127,18 +130,17 @@ class VisualizationNode:
         filt_marker.pose.position.x = x
         filt_marker.pose.position.y = y
         filt_marker.pose.position.z = 2.3
-        q_filt = tf.transformations.quaternion_from_euler(0, 0, yaw)
+        q_filt = tf.transformations.quaternion_from_euler(0, 0, yaw_rad)
         filt_marker.pose.orientation = Quaternion(*q_filt)
         filt_marker.scale.x, filt_marker.scale.y, filt_marker.scale.z = 4.0, 0.15, 0.15
         filt_marker.color = ColorRGBA(0.0, 1.0, 0.0, 1.0)
         marker_array.markers.append(filt_marker)
 
-        # 4. Course Truth (Blue Arrow) - Calculated from raw pos delta
-        # Using a sliding window (look back 50 points) for smoother course truth
-        if len(self.hist_pos) > 50:
-            past_e, past_n = self.hist_pos[-50]
+        # 4. Course Truth
+        if len(self.hist_pos) > 30:
+            past_e, past_n = self.hist_pos[-30]
             de, dn = x - past_e, y - past_n
-            if math.hypot(de, dn) > 0.4: # Slightly higher threshold for long window
+            if math.hypot(de, dn) > 0.2:
                 cog_marker = Marker()
                 cog_marker.header.frame_id = "map"
                 cog_marker.header.stamp = now
@@ -155,25 +157,16 @@ class VisualizationNode:
                 cog_marker.color = ColorRGBA(0.0, 0.0, 1.0, 1.0)
                 marker_array.markers.append(cog_marker)
                 
-                # 6. Publish Numeric Data for Live Plotter
                 yaw_msg = Float32MultiArray()
-                # [Raw, EKF, Truth]
-                yaw_msg.data = [self.current_raw_yaw, yaw, cog_angle]
+                yaw_msg.data = [
+                    math.degrees(self.current_raw_yaw), 
+                    yaw_deg, 
+                    math.degrees(cog_angle)
+                ]
                 self.yaw_data_pub.publish(yaw_msg)
         
-        # 5. ENVIRONMENT markers
-        terrain = Marker()
-        terrain.header.frame_id = "map"; terrain.header.stamp = now; terrain.ns = "env"; terrain.id = 100
-        terrain.type = Marker.CUBE; terrain.pose.position.z = -0.1
-        terrain.scale.x, terrain.scale.y, terrain.scale.z = 1000.0, 1000.0, 0.1
-        terrain.color = ColorRGBA(0.2, 0.4, 0.2, 1.0); marker_array.markers.append(terrain)
-
-        sun = Marker()
-        sun.header.frame_id = "map"; sun.header.stamp = now; sun.ns = "env"; sun.id = 101
-        sun.type = Marker.SPHERE; sun.pose.position.x, sun.pose.position.y, sun.pose.position.z = 150, 150, 80
-        sun.scale.x, sun.scale.y, sun.scale.z = 25, 25, 25
-        sun.color = ColorRGBA(1.0, 0.9, 0.0, 1.0); marker_array.markers.append(sun)
-
+        # REMOVE TERRAIN AND SUN - They're static and expensive
+        
         self.marker_pub.publish(marker_array)
 
 if __name__ == '__main__':
