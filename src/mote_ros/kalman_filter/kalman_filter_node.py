@@ -116,20 +116,11 @@ class KalmanFilterNode:
             self.initialized = True
             return
 
-        # Update dt and predict
-        if not self.update_dt_and_predict(t_msg):
-            return # Skip if dt is not valid
-
-        # 1. Prediction with IMU (already done by update_dt_and_predict)
-        # self.kf.predict_ekf(omega_measured=self.current_yaw_rate) # This is now handled by update_dt_and_predict
+        # Update dt and predict (Don't return early! Still need to update measurement)
+        self.update_dt_and_predict(t_msg)
 
         # 2. Update with GPS Position
         e, n = self.latlon_to_utm(msg.latitude, msg.longitude)
-        
-        # if self.origin_x is None: # This block is now handled in initialization
-        #     self.origin_x = e
-        #     self.origin_y = n
-            
         rel_e = e - self.origin_e
         rel_n = n - self.origin_n
         
@@ -145,18 +136,20 @@ class KalmanFilterNode:
             curr_e, curr_n = self.hist_gps[-1]
             past_e, past_n = self.hist_gps[-stride]
             de, dn = curr_e - past_e, curr_n - past_n # Delta East, Delta North
-            dist = math.sqrt(de**2 + dn**2)
+            dist = math.hypot(de, dn)
             est_v = self.kf.x[2, 0]
             
-            moved_enough = dist > self.min_geometry_distance
-            is_fast = est_v > self.velocity_fusion_threshold
-            is_turning = abs(self.current_yaw_rate) > self.turn_fusion_threshold
+            # Match offline logic: Moved 15cm + Velocity/Turn Check
+            moved_enough = dist > 0.15 
+            is_fast = est_v > 0.3
+            is_turning = abs(self.current_yaw_rate) > 0.1
             
             if moved_enough and (is_fast or is_turning):
                 gps_course = math.atan2(dn, de)
                 is_fusing_course = True
                 z_course = np.array([[gps_course]])
-                self.kf.update(z_course, self.kf.H_yaw, np.eye(1) * self.course_fusion_trust, angle_indices=[0])
+                # Strong fusion as used in analyze_bag_data.py
+                self.kf.update(z_course, self.kf.H_yaw, np.eye(1) * 0.001, angle_indices=[0])
 
         # 4. Sensor Update (Coasting)
         z_yaw = np.array([[yaw_std]])
@@ -174,7 +167,7 @@ class KalmanFilterNode:
         self.update_dt_and_predict(t_msg)
 
         z_vel = np.array([[msg.twist.linear.x]])
-        z_yawrate = -msg.twist.angular.z 
+        z_yawrate = msg.twist.angular.z 
         self.current_yaw_rate = z_yawrate
 
         self.kf.update(z_vel, self.kf.H_vel, self.kf.R_vel)

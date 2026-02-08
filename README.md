@@ -59,13 +59,22 @@ docker-compose run --rm mote_ros /bin/bash -c "python3 src/AGC-MOTE-Monte-Carlo/
 
 
 
-To run the bag file analysis:
-```bash
-docker-compose run --rm mote_ros /bin/bash -c "source devel/setup.bash && roslaunch mote_ros run_both_nodes.launch"
-```
 
 
 To run the visualization node:
 ```bash
 docker-compose run --rm mote_ros /bin/bash -c "source devel/setup.bash && roslaunch mote_ros rviz.launch"
+```
+
+
+To run the live yaw plotter:
+```bash
+docker exec -it $(docker ps -q --filter name=mote_ros) /bin/bash -c "source devel/setup.bash && python3 src/AGC-MOTE-Monte-Carlo/scripts/live_plotter.py"
+```
+
+
+
+To run the bag file analysis:
+```bash
+docker-compose run --rm mote_ros /bin/bash -c "source devel/setup.bash && roslaunch mote_ros run_both_nodes.launch"
 ```

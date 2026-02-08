@@ -8,7 +8,7 @@ from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import Quaternion, Point
 from mote_ros.msg import State
 from vectornav.msg import Ins
-from std_msgs.msg import ColorRGBA
+from std_msgs.msg import ColorRGBA, Float32MultiArray
 import math
 
 class VisualizationNode:
@@ -16,6 +16,7 @@ class VisualizationNode:
         rospy.init_node('visualization_node')
         
         self.marker_pub = rospy.Publisher('visualization_marker_array', MarkerArray, queue_size=10)
+        self.yaw_data_pub = rospy.Publisher('yaw_comparison_data', Float32MultiArray, queue_size=10)
         self.tf_broadcaster = tf.TransformBroadcaster()
         
         rospy.Subscriber('kalman_state', State, self.kalman_callback)
@@ -133,11 +134,11 @@ class VisualizationNode:
         marker_array.markers.append(filt_marker)
 
         # 4. Course Truth (Blue Arrow) - Calculated from raw pos delta
-        # Using a shorter 20-point window (0.2s) for better responsiveness in RViz
-        if len(self.hist_pos) > 20:
-            past_e, past_n = self.hist_pos[0]
+        # Using a sliding window (look back 50 points) for smoother course truth
+        if len(self.hist_pos) > 50:
+            past_e, past_n = self.hist_pos[-50]
             de, dn = x - past_e, y - past_n
-            if math.hypot(de, dn) > 0.2:
+            if math.hypot(de, dn) > 0.4: # Slightly higher threshold for long window
                 cog_marker = Marker()
                 cog_marker.header.frame_id = "map"
                 cog_marker.header.stamp = now
@@ -153,6 +154,12 @@ class VisualizationNode:
                 cog_marker.scale.x, cog_marker.scale.y, cog_marker.scale.z = 4.0, 0.1, 0.1
                 cog_marker.color = ColorRGBA(0.0, 0.0, 1.0, 1.0)
                 marker_array.markers.append(cog_marker)
+                
+                # 6. Publish Numeric Data for Live Plotter
+                yaw_msg = Float32MultiArray()
+                # [Raw, EKF, Truth]
+                yaw_msg.data = [self.current_raw_yaw, yaw, cog_angle]
+                self.yaw_data_pub.publish(yaw_msg)
         
         # 5. ENVIRONMENT markers
         terrain = Marker()

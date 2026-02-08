@@ -88,6 +88,11 @@ def analyze_bag(bag_path):
     init_utm_e, init_utm_n, _, _ = utm.from_latlon(init_lat, init_lon)
     
     # Initialize State: [E, N, v, theta, bias]
+    # Yaw conversion: NED (0=N, CW) -> ENU (0=E, CCW)
+    init_yaw_rad = np.radians(init_msg['yaw'])
+    init_yaw_std = np.pi/2.0 - init_yaw_rad
+    init_yaw_std = (init_yaw_std + np.pi) % (2.0 * np.pi) - np.pi
+    
     kf.x = np.array([[init_utm_e], [init_utm_n], [0.0], [init_yaw_std], [0.0]])
     print(f"Initialized at E:{init_utm_e:.2f}, N:{init_utm_n:.2f}, Yaw:{init_yaw_std:.2f}")
 
@@ -148,7 +153,7 @@ def analyze_bag(bag_path):
 
         if event['type'] == 'TWIST':
             linear_x = event['linear_x']
-            angular_z = -event['angular_z'] # Flip sign for ENU
+            angular_z = event['angular_z']
             current_yaw_rate = angular_z
             
             z_vel = np.array([[linear_x]])
