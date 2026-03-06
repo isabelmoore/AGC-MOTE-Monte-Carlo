@@ -95,12 +95,13 @@ def analyze_bag(bag_path):
     
     # [E, N, v, theta, rate_bias, head_bias, a]
     kf.x = np.array([[init_utm_e], [init_utm_n], [0.0], [init_yaw_std], [0.0], [0.0], [0.0]])
+    kf.P[5, 5] = 0.001 # SYNC: Tighten bias uncertainty at start
     print(f"Initialized at E:{init_utm_e:.2f}, N:{init_utm_n:.2f}, Yaw:{init_yaw_std:.2f}")
 
     # Initialize Matrices
     kf.R_pos = np.eye(2) * 15.0 # ULTRA smoothing for jittery GPS
     kf.R_vel = np.eye(1) * 1.0
-    kf.R_yaw = np.eye(1) * 0.5  # De-weight sensor slightly more
+    kf.R_yaw = np.eye(1) * 0.1  # SYNC: Match live node (was 0.5)
     # Noise Tuning - Phase 7: Ultra-Stability
     kf.Q[3, 3] = 0.0001     # Tightest heading (Heavy inertia)
     kf.Q[4, 4] = 0.000001   # Ultra-stable rate bias
@@ -135,10 +136,10 @@ def analyze_bag(bag_path):
         dt = t - last_t
         last_t = t
         
-        # 1. Predict
+        # 1. Sync Prediction: Call every frame like the live node
         if dt > 0:
             kf.dt = dt
-            pass 
+            kf.predict_ekf(omega_measured=current_yaw_rate)
 
         if event['type'] == 'TWIST':
             current_linear_v = event['linear_x']
@@ -153,10 +154,7 @@ def analyze_bag(bag_path):
                 kf.x[6, 0] = 0.0 
             
         elif event['type'] == 'INS':
-            # 1. Predict
-            kf.predict_ekf(omega_measured=current_yaw_rate) 
-            
-            # 2. Update Position
+            # 1. Position Update
             lat, lon = event['latitude'], event['longitude']
             utm_e, utm_n, _, _ = utm.from_latlon(lat, lon)
             z_pos = np.array([[utm_e], [utm_n]]) 
@@ -206,18 +204,98 @@ def analyze_bag(bag_path):
             hist_est.append([t, state[0], state[1], state[2], state[3], state[4], state[5], state[6], yaw_raw_ned])
             hist_ins_yaw.append([t, yaw_std])
 
-    # ANALYTICS: Jitter Metrics
+    # ANALYTICS: Jitter & Error Metrics
+    err_metrics = {}
     if len(innovations_yaw) > 0:
-        rms_jitter = np.sqrt(np.mean(np.square(innovations_yaw)))
+        rms_jitter_rad = np.sqrt(np.mean(np.square(innovations_yaw)))
         print(f"\n--- JITTER ANALYTICS ---")
-        print(f"Heading Innovation RMS: {rms_jitter:.6f} rad ({np.degrees(rms_jitter):.4f} deg)")
-        print(f"Stability Score: {(1.0 - min(rms_jitter, 1.0))*100:.1f}/100")
+        print(f"Heading Innovation RMS: {rms_jitter_rad:.6f} rad ({np.degrees(rms_jitter_rad):.4f} deg)")
+        print(f"Stability Score: {(1.0 - min(rms_jitter_rad, 1.0))*100:.1f}/100")
         print("------------------------\n")
 
-    # Convert and Plot
+    # Convert to arrays for processing
     hist_est = np.array(hist_est)
     hist_gps = np.array(hist_gps)
     hist_ins_yaw = np.array(hist_ins_yaw)
+    time_arr = hist_est[:, 0]
+
+    # --- Precise Error Metrics (vs Ground Truth Course) ---
+    stride = 50 # Increased for stable GPS-derived course
+    if len(hist_gps) > stride:
+        t_sub_gps = hist_gps[::stride, 0] # Save for error timestamps
+        x_sub = hist_gps[::stride, 1] # Use Raw GPS East
+        y_sub = hist_gps[::stride, 2] # Use Raw GPS North
+        
+        # We need EKF and Raw Yaw at the SAME strides
+        # Since hist_est and hist_gps are synced (appended together), we use the same indices
+        ekf_yaw_sub = hist_est[::stride, 4]
+        raw_yaw_sub = hist_est[::stride, 8]
+        
+        dx = np.diff(x_sub)
+        dy = np.diff(y_sub)
+        dist = np.hypot(dx, dy)
+        valid_mask = dist > 0.5
+        
+        if np.any(valid_mask):
+            cog_angles = np.arctan2(dy[valid_mask], dx[valid_mask])
+            cog_rad = (cog_angles + np.pi) % (2.0 * np.pi) - np.pi
+            
+            # Subsample EKF and Raw to match valid COG points
+            ekf_yaw_valid = ekf_yaw_sub[:-1][valid_mask]
+            raw_yaw_ned_valid = raw_yaw_sub[:-1][valid_mask]
+            raw_yaw_enu_valid = (np.pi/2.0 - raw_yaw_ned_valid + np.pi) % (2.0 * np.pi) - np.pi
+            
+            # Calculate Angular Errors
+            def angular_diff(a, b):
+                diff = (a - b + np.pi) % (2.0 * np.pi) - np.pi
+                return np.abs(diff)
+            
+            ekf_errors = angular_diff(ekf_yaw_valid, cog_rad)
+            raw_errors = angular_diff(raw_yaw_enu_valid, cog_rad)
+            
+            err_metrics['ekf_mae_deg'] = np.degrees(np.mean(ekf_errors))
+            err_metrics['ekf_std_deg'] = np.degrees(np.std(ekf_errors))
+            err_metrics['ekf_max_deg'] = np.degrees(np.max(ekf_errors))
+            err_metrics['ekf_min_deg'] = np.degrees(np.min(ekf_errors))
+            
+            # Robust Metrics (95% CI and Trimmed Mean)
+            err_metrics['ekf_95ci'] = np.degrees(np.percentile(ekf_errors, [2.5, 97.5]))
+            ekf_mask_95 = (ekf_errors >= np.percentile(ekf_errors, 2.5)) & (ekf_errors <= np.percentile(ekf_errors, 97.5))
+            err_metrics['ekf_mae_95_deg'] = np.degrees(np.mean(ekf_errors[ekf_mask_95]))
+            
+            # Identify timestamps for extremes
+            t_valid = t_sub_gps[:-1][valid_mask]
+            idx_ekf_max = np.argmax(ekf_errors)
+            idx_ekf_min = np.argmin(ekf_errors)
+            err_metrics['ekf_max_t'] = t_valid[idx_ekf_max]
+            err_metrics['ekf_max_y'] = np.degrees(ekf_yaw_valid[idx_ekf_max])
+            err_metrics['ekf_min_t'] = t_valid[idx_ekf_min]
+            err_metrics['ekf_min_y'] = np.degrees(ekf_yaw_valid[idx_ekf_min])
+            
+            err_metrics['raw_mae_deg'] = np.degrees(np.mean(raw_errors))
+            err_metrics['raw_std_deg'] = np.degrees(np.std(raw_errors))
+            err_metrics['raw_max_deg'] = np.degrees(np.max(raw_errors))
+            err_metrics['raw_min_deg'] = np.degrees(np.min(raw_errors))
+            
+            # Robust Metrics (Raw)
+            err_metrics['raw_95ci'] = np.degrees(np.percentile(raw_errors, [2.5, 97.5]))
+            raw_mask_95 = (raw_errors >= np.percentile(raw_errors, 2.5)) & (raw_errors <= np.percentile(raw_errors, 97.5))
+            err_metrics['raw_mae_95_deg'] = np.degrees(np.mean(raw_errors[raw_mask_95]))
+            
+            idx_raw_max = np.argmax(raw_errors)
+            err_metrics['raw_max_t'] = t_valid[idx_raw_max]
+            err_metrics['raw_max_y'] = np.degrees(raw_yaw_enu_valid[idx_raw_max])
+            
+            print(f"--- FUSION ERROR METRICS (vs Raw Blue) ---")
+            print(f"Green (EKF) Mean: {err_metrics['ekf_mae_deg']:.3f}° | Std: {err_metrics['ekf_std_deg']:.3f}° | Range: [{err_metrics['ekf_min_deg']:.3f}, {err_metrics['ekf_max_deg']:.3f}]°")
+            print(f"            95% CI: [{err_metrics['ekf_95ci'][0]:.3f}, {err_metrics['ekf_95ci'][1]:.3f}]° | Trimmed Mean (95%): {err_metrics['ekf_mae_95_deg']:.3f}°")
+            print(f"Red (Raw)   Mean: {err_metrics['raw_mae_deg']:.3f}° | Std: {err_metrics['raw_std_deg']:.3f}° | Range: [{err_metrics['raw_min_deg']:.3f}, {err_metrics['raw_max_deg']:.3f}]°")
+            print(f"            95% CI: [{err_metrics['raw_95ci'][0]:.3f}, {err_metrics['raw_95ci'][1]:.3f}]° | Trimmed Mean (95%): {err_metrics['raw_mae_95_deg']:.3f}°")
+            improvement = 100.0 * (err_metrics['raw_mae_deg'] - err_metrics['ekf_mae_deg']) / err_metrics['raw_mae_deg']
+            improvement_95 = 100.0 * (err_metrics['raw_mae_95_deg'] - err_metrics['ekf_mae_95_deg']) / err_metrics['raw_mae_95_deg']
+            print(f"Drift Reduction: {improvement:.1f}% (95% Trimmed: {improvement_95:.1f}%)")
+            print("-----------------------------------------------\n")
+
     
     # ...
     
@@ -230,11 +308,13 @@ def analyze_bag(bag_path):
     # 1. Text Output
     res_file = os.path.join(results_dir, 'kalman_filter_results.txt')
     with open(res_file, 'w') as f:
-        # Update Header: T, E, N, V, Yaw, RateBias, HeadBias, Accel, RawYaw
-        f.write('Timestamp, E, N, V, Yaw, RateBias, HeadBias, Accel, RawYaw\n')
-        for row in hist_est:
-            # Row has 9 elements
-            f.write(f"{row[0]:.4f}, {row[1]:.4f}, {row[2]:.4f}, {row[3]:.4f}, {row[4]:.4f}, {row[5]:.4f}, {row[6]:.4f}, {row[7]:.4f}, {row[8]:.4f}\n")
+        # Header (REVERTED TO RADIANS): T, E, N, V, Yaw_rad, RateBias_rads, HeadBias_rad, Accel, RawYaw_rad, GPS_E, GPS_N
+        f.write('Timestamp, E, N, V, Yaw_rad, RateBias_rads, HeadBias_rad, Accel, RawYaw_rad, GPS_E, GPS_N\n')
+        for i in range(len(hist_est)):
+            r = hist_est[i]
+            g = hist_gps[i]
+            # Use original Radian values for code compatibility
+            f.write(f"{r[0]:.4f}, {r[1]:.4f}, {r[2]:.4f}, {r[3]:.4f}, {r[4]:.6f}, {r[5]:.8f}, {r[6]:.8f}, {r[7]:.4f}, {r[8]:.6f}, {g[1]:.4f}, {g[2]:.4f}\n")
     print(f"Results saved to {res_file}")
 
     # 2. Plot
@@ -306,7 +386,7 @@ def analyze_bag(bag_path):
     print(f"Plot saved to {plot_file}")
     
     # 3. Plot Yaw Comparison and Velocity
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 10), sharex=True)
     
     # Subplot 1: Yaw
     time_arr = hist_est[:, 0]
@@ -314,7 +394,7 @@ def analyze_bag(bag_path):
     raw_yaw_deg = np.degrees(hist_est[:, 8])
     
     # Helper to remove vertical lines when wrapping from 180 to -180
-    def remove_wrapping_artifacts(t, y, threshold=180):
+    def remove_wrapping_artifacts(t, y, threshold=50): # Tightened for cleaner plots
         t_clean = t.copy()
         y_clean = y.copy()
         
@@ -331,42 +411,69 @@ def analyze_bag(bag_path):
 
     # 1. EKF Yaw
     t_ekf, y_ekf = remove_wrapping_artifacts(time_arr, ekf_yaw_deg)
-    ax1.plot(t_ekf, y_ekf, 'g-', lw=2, label='EKF Yaw (Corrected)')
+    label_green = 'EKF Yaw (Corrected)'
+    if 'ekf_mae_deg' in err_metrics:
+        label_green += f' (MAE: {err_metrics["ekf_mae_deg"]:.2f}°)'
+    ax1.plot(t_ekf, y_ekf, 'g-', lw=2, label=label_green)
 
     # 2. Raw INS Yaw (Convert NED -> ENU first)
-    # Original: NED (0=North, CW). ENU (0=East, CCW)
-    # Formula: ENU = (90 - NED + 180) % 360 - 180
-    raw_yaw_enu = (90 - raw_yaw_deg + 180) % 360 - 180
+    raw_yaw_enu_deg = (90 - raw_yaw_deg + 180) % 360 - 180
+    t_raw, y_raw = remove_wrapping_artifacts(time_arr, raw_yaw_enu_deg)
+    label_red = 'Raw INS Yaw (ENU)'
+    if 'raw_mae_deg' in err_metrics:
+        label_red += f' (MAE: {err_metrics["raw_mae_deg"]:.2f}°)'
+    ax1.plot(t_raw, y_raw, 'r--', alpha=0.6, label=label_red)
     
-    t_raw, y_raw = remove_wrapping_artifacts(time_arr, raw_yaw_enu)
-    ax1.plot(t_raw, y_raw, 'r--', alpha=0.6, label='Raw INS Yaw (ENU)')
-    
-    # Course Over Ground (Blue) - Line Plot
-    # Calculate for all points using a stride to filter noise/low-speed
-    stride = 50 # Every 50 samples (~0.5s if 100Hz)
-    if len(hist_est) > stride:
-        t_sub = time_arr[::stride]
-        x_sub = hist_est[::stride, 1] # East
-        y_sub = hist_est[::stride, 2] # North
+    # Course Over Ground (Blue) - Use Raw GPS
+    stride_gt = 50 
+    if len(hist_gps) > stride_gt:
+        t_sub_gt = hist_gps[::stride_gt, 0]
+        x_sub_gt = hist_gps[::stride_gt, 1] 
+        y_sub_gt = hist_gps[::stride_gt, 2] 
         
-        dx = np.diff(x_sub)
-        dy = np.diff(y_sub)
+        dx = np.diff(x_sub_gt)
+        dy = np.diff(y_sub_gt)
         dist = np.hypot(dx, dy)
-        
-        # Only calculate angles where moving > 0.5m over the stride
         valid_mask = dist > 0.5
         
         if np.any(valid_mask):
+            # Calculate Raw Course angles for plotting
             cog_angles = np.arctan2(dy[valid_mask], dx[valid_mask])
-            cog_deg = np.degrees(cog_angles)
+            cog_deg = np.degrees((cog_angles + np.pi) % (2.0 * np.pi) - np.pi)
             
-            # Clean up Course lines too
-            t_cog = t_sub[:-1][valid_mask]
+            # Decimate time to match valid COG points
+            t_cog_raw = t_sub_gt[:-1][valid_mask]
             
-            t_cog_clean, y_cog_clean = remove_wrapping_artifacts(t_cog, cog_deg)
+            # Ensure fresh copy for cleaning to avoid scope leakage
+            t_cog_clean, y_cog_clean = remove_wrapping_artifacts(t_cog_raw, cog_deg)
             
-            # Plot corresponding times (offset by 1 due to diff)
-            ax1.plot(t_cog_clean, y_cog_clean, 'b-', lw=1.5, alpha=0.7, label='Course Truth (Blue)')
+            label_blue = 'Course Truth (Raw Blue)'
+            if 'ekf_mae_deg' in err_metrics:
+                label_blue = f'Course Truth (Raw Blue)'
+            ax1.plot(t_cog_clean, y_cog_clean, 'b-', lw=1.5, alpha=0.7, label=label_blue)
+
+    # --- Annotate Extremes (Arrows) ---
+    if 'ekf_max_t' in err_metrics:
+        # EKF Max
+        ax1.annotate(f'EKF MAX\n{err_metrics["ekf_max_deg"]:.1f}°', 
+                    xy=(err_metrics['ekf_max_t'], err_metrics['ekf_max_y']),
+                    xytext=(err_metrics['ekf_max_t'], err_metrics['ekf_max_y'] + 40),
+                    arrowprops=dict(facecolor='green', shrink=0.05, width=1, headwidth=5),
+                    color='green', weight='bold', ha='center', zorder=10)
+        
+        # EKF Min
+        ax1.annotate(f'EKF MIN\n{err_metrics["ekf_min_deg"]:.2f}°', 
+                    xy=(err_metrics['ekf_min_t'], err_metrics['ekf_min_y']),
+                    xytext=(err_metrics['ekf_min_t'], err_metrics['ekf_min_y'] - 60),
+                    arrowprops=dict(facecolor='darkgreen', shrink=0.05, width=1, headwidth=5),
+                    color='darkgreen', weight='bold', ha='center', zorder=10)
+        
+        # Raw Max
+        ax1.annotate(f'RAW MAX\n{err_metrics["raw_max_deg"]:.1f}°', 
+                    xy=(err_metrics['raw_max_t'], err_metrics['raw_max_y']),
+                    xytext=(err_metrics['raw_max_t'], err_metrics['raw_max_y'] - 40),
+                    arrowprops=dict(facecolor='red', shrink=0.05, width=1, headwidth=5),
+                    color='red', weight='bold', ha='center', zorder=10)
     
     ax1.set_ylabel('Yaw (deg)')
     ax1.set_title('Yaw Comparison: Corrected vs Raw vs Course')

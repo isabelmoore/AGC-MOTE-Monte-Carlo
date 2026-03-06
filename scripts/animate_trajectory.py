@@ -134,57 +134,27 @@ def animate_results():
     raw_t, raw_y = clean_for_plotting(time_arr, raw_yaw_enu)
     ax_yaw.plot(raw_t, raw_y, 'r--', alpha=0.6, label='Raw INS Yaw (ENU)')
     
-    # Calculate Course Truth for plot
-    # Use a longer stride to filter out GPS noise when moving slowly
-    stride = 100 
-    if len(data) > stride:
-        t_sub = time_arr[::stride]
-        x_sub = data[::stride, 1] # East
-        y_sub = data[::stride, 2] # North
+    # --- Pre-calculate Smoothed Truth for Error Metrics ---
+    stride_gt = 100
+    cog_smooth_lookup = None # Will store (time, yaw)
+    if len(data) > stride_gt:
+        t_gt = time_arr[::stride_gt]
+        x_gt = data[::stride_gt, 9] # Use Raw GPS East (Column 9)
+        y_gt = data[::stride_gt, 10] # Use Raw GPS North (Column 10)
+        dx_gt = np.diff(x_gt)
+        dy_gt = np.diff(y_gt)
+        dist_gt = np.hypot(dx_gt, dy_gt)
+        valid_gt = dist_gt > 0.5
         
-        dx = np.diff(x_sub)
-        dy = np.diff(y_sub)
-        dist = np.hypot(dx, dy)
-        
-        # Only show course if moved > 0.5m over the stride (approx 0.5m/s if 100Hz)
-        valid_mask = dist > 0.5 
-        
-        if np.any(valid_mask):
-            valid_t = t_sub[:-1][valid_mask]
-            
-            # Raw Course Angles
-            cog_angles = np.arctan2(dy[valid_mask], dx[valid_mask])
-            cog_deg = np.degrees(cog_angles)
-            
-            # Smooth Course Angles (Unwrap -> Smooth -> Wrap)
-            cog_unwrapped = np.unwrap(cog_angles)
-            window = 10
-            cog_smooth_unwrapped = np.convolve(cog_unwrapped, np.ones(window)/window, mode='same')
-            cog_smooth_rad = (cog_smooth_unwrapped + np.pi) % (2 * np.pi) - np.pi
-            cog_smooth_deg = np.degrees(cog_smooth_rad)
+        if np.any(valid_gt):
+            valid_t_gt = t_gt[:-1][valid_gt]
+            cog_angles_gt = np.arctan2(dy_gt[valid_gt], dx_gt[valid_gt])
+            cog_rad_gt = (cog_angles_gt + np.pi) % (2.0 * np.pi) - np.pi
+            cog_smooth_lookup = (valid_t_gt, cog_rad_gt)
 
-            # --- Reverse Detection ---
-            # Interpolate Raw Yaw to valid_t to compare
-            # Subsampled raw yaw:
-            # Index 8 is RawYaw (NED) in analyze_bag_data.py
-            raw_yaw_ned_sub = data[::stride, 8][:-1][valid_mask]
-            # Convert to ENU for plotting
-            raw_yaw_sub = np.pi/2.0 - raw_yaw_ned_sub
-            raw_yaw_sub = (raw_yaw_sub + np.pi) % (2 * np.pi) - np.pi
-            
-            # Difference between Course and Raw Yaw
-            diff = np.abs(np.degrees(np.arctan2(np.sin(cog_smooth_rad - raw_yaw_sub), np.cos(cog_smooth_rad - raw_yaw_sub))))
-            
-            # Re-wrap
-            cog_smooth_deg = (cog_smooth_deg + 180) % 360 - 180
-
-            # Clean Course Plots
-            cog_raw_t, cog_raw_y = clean_for_plotting(valid_t, cog_deg)
-            cog_smooth_t, cog_smooth_y = clean_for_plotting(valid_t, cog_smooth_deg)
-
-            # Plot faint original (Raw Course), bold smoothed (Reversed & Cleaned)
-            ax_yaw.plot(cog_raw_t, cog_raw_y, 'b-', lw=1, alpha=0.3, label='Course Truth (Raw)')
-            ax_yaw.plot(cog_smooth_t, cog_smooth_y, 'b-', lw=2, alpha=0.8, label='Course Truth (Smoothed)')
+            # Plot for Yaw comparison
+            cog_t_plot, cog_y_plot = clean_for_plotting(valid_t_gt, np.degrees(cog_rad_gt))
+            ax_yaw.plot(cog_t_plot, cog_y_plot, 'b-', lw=2, alpha=0.8, label='Course Truth (Raw Blue)')
 
     ax_yaw.set_ylabel('Yaw (deg)')
     ax_yaw.set_title('Yaw Comparison: Corrected vs Raw vs Course')
@@ -221,6 +191,51 @@ def animate_results():
     lines_v, labels_v = ax_vel.get_legend_handles_labels()
     lines_a, labels_a = ax_accel.get_legend_handles_labels()
     ax_vel.legend(lines_v + lines_a, labels_v + labels_a, loc='upper left', fontsize='small')
+
+    # Pre-calculate errors for all decimated frames to find global min/max
+    errors_ekf = []
+    errors_raw = []
+    extremes = {} # {frame_idx: "Label"}
+    
+    if cog_smooth_lookup is not None:
+        t_gt, yaw_gt = cog_smooth_lookup
+        def angular_diff_local(a, b):
+            return np.abs((a - b + np.pi) % (2.0 * np.pi) - np.pi)
+            
+        for i in range(len(data_dec)):
+            ti = data_dec[i, 0]
+            yawi = data_dec[i, 4]
+            raw_yawi_ned = data_dec[i, 8]
+            raw_yawi_enu = (np.pi/2.0 - raw_yawi_ned + np.pi) % (2 * np.pi) - np.pi
+            
+            idx_gt = np.searchsorted(t_gt, ti)
+            if idx_gt > 0 and idx_gt < len(t_gt):
+                truth_yawi = yaw_gt[idx_gt]
+                errors_ekf.append(np.degrees(angular_diff_local(yawi, truth_yawi)))
+                errors_raw.append(np.degrees(angular_diff_local(raw_yawi_enu, truth_yawi)))
+            else:
+                errors_ekf.append(0.0)
+                errors_raw.append(0.0)
+                
+        if len(errors_ekf) > 0:
+            idx_ekf_max = np.argmax(errors_ekf)
+            idx_ekf_min = np.argmin(errors_ekf)
+            idx_raw_max = np.argmax(errors_raw)
+            idx_raw_min = np.argmin(errors_raw)
+            
+            extremes[idx_ekf_max] = f"EKF MAX ERROR ({errors_ekf[idx_ekf_max]:.1f}°)"
+            extremes[idx_ekf_min] = f"EKF MIN ERROR ({errors_ekf[idx_ekf_min]:.2f}°)"
+            extremes[idx_raw_max] = f"RAW MAX ERROR ({errors_raw[idx_raw_max]:.1f}°)"
+            # Skip Raw Min to avoid clutter as EKF Min is often close
+    
+    # Text markers for extremes (initially hidden)
+    extreme_marker = ax_map.text(0, 0, "", color='white', weight='bold', 
+                                bbox=dict(facecolor='black', alpha=0.8, boxstyle='round,pad=0.3'),
+                                zorder=10, visible=False)
+
+    # Cumulative Error Tracking
+    cumulative_ekf_err = []
+    cumulative_raw_err = []
 
     def update(i):
         # Easting (X), Northing (Y)
@@ -284,7 +299,48 @@ def animate_results():
         else:
             arrow_cog_line.set_data([], [])
             
-        time_text.set_text(f'Time: {ti:.1f}s | Yaw: {np.degrees(yawi):.1f} deg | Vel: {vi:.2f} m/s | Accel: {ai:.3f} m/s²')
+        # 4. Error Calculation
+        err_str = ""
+        if cog_smooth_lookup is not None:
+            t_gt, yaw_gt = cog_smooth_lookup
+            # Find closest GT point
+            idx_gt = np.searchsorted(t_gt, ti)
+            if idx_gt > 0 and idx_gt < len(t_gt):
+                truth_yawi = yaw_gt[idx_gt]
+                
+                def angular_diff(a, b):
+                    return np.abs((a - b + np.pi) % (2.0 * np.pi) - np.pi)
+                
+                ekf_err = np.degrees(angular_diff(yawi, truth_yawi))
+                raw_err = np.degrees(angular_diff(raw_yaw_enu, truth_yawi))
+                
+                cumulative_ekf_err.append(ekf_err)
+                cumulative_raw_err.append(raw_err)
+                
+                mae_ekf = np.mean(cumulative_ekf_err)
+                mae_raw = np.mean(cumulative_raw_err)
+                
+                err_str = f" | EKF Err: {ekf_err:.1f}° (MAE: {mae_ekf:.1f}°) | Raw Err: {raw_err:.1f}° (MAE: {mae_raw:.1f}°)"
+
+        # Highlight Extremes (Persistence for 60 frames / 2 seconds)
+        duration = 60
+        found_active = False
+        for start_idx, label in extremes.items():
+            if start_idx <= i < start_idx + duration:
+                # Update text and position to where it happened
+                ex_ei = data_dec[start_idx, 1]
+                ex_ni = data_dec[start_idx, 2]
+                extreme_marker.set_text(label)
+                extreme_marker.set_position((ex_ei + 10, ex_ni + 10))
+                extreme_marker.set_visible(True)
+                found_active = True
+                break
+        
+        if not found_active:
+            extreme_marker.set_visible(False)
+
+        time_text.set_text(f'Time: {ti:.1f}s | Yaw: {np.degrees(yawi):.1f} deg | Vel: {vi:.2f} m/s' + err_str)
+        
         # Print Debug Info
         if i % 10 == 0 or i == len(data_dec) - 1:
             # Print Raw in ENU for comparison
@@ -297,9 +353,9 @@ def animate_results():
             if 'cog_angle' in locals():
                 cog_str = f"{np.degrees(cog_angle):.1f}"
             
-            print(f"Frame {i}: Time={ti:.1f}s | EKF={ekf_deg:.1f} | Raw(ENU)={raw_deg_enu:.1f} | Course={cog_str}", flush=True)
+            print(f"Frame {i}: Time={ti:.1f}s | EKF={ekf_deg:.1f} | Raw(ENU)={raw_deg_enu:.1f} | Course={cog_str}{err_str}", flush=True)
 
-        return trail_line, robot_marker, arrow_line, arrow_raw_line, arrow_cog_line, time_text, vel_marker, yaw_time_line, accel_marker
+        return trail_line, robot_marker, arrow_line, arrow_raw_line, arrow_cog_line, time_text, vel_marker, yaw_time_line, accel_marker, extreme_marker
 
 
     ani = animation.FuncAnimation(fig, update, frames=len(data_dec), interval=30, blit=True)
