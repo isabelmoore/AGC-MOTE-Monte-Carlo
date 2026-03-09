@@ -41,22 +41,9 @@ The 7-state EKF models sensor bias as a hidden state variable, fusing GPS positi
 | `heading_bias` | Absolute sensor offset | Constant offset between IMU reading and true north |
 | `acceleration` | Linear acceleration (damped) | Smooths velocity transitions, prevents jitter at stops/starts |
 
-3.6 deg mean absolute error (EKF) vs 24.0 deg MAE (raw IMU) — a 6.6x improvement.
-
-<p align="center">
-  <img src="results/yaw_comparison.png" alt="Yaw comparison: EKF vs Raw vs Course truth" width="49%"/>
-  <img src="results/trajectory_offline.png" alt="Trajectory with heading vectors" width="49%"/>
-</p>
-
-<p align="center"><em>Left: Heading over time — green (EKF) tracks blue (GPS truth) while red (raw IMU) drifts. Right: Bird's-eye trajectory with heading arrows.</em></p>
-
 ---
 
 ## Quick Start
-
-### Prerequisites
-- Docker Desktop with WSL integration enabled
-- X server for GUI (VcXsrv/Xming on Windows, or native on Linux)
 
 ### Build
 ```bash
@@ -123,29 +110,4 @@ scripts/
 
 ---
 
-## How It Works
 
-Full mathematical formulation (state prediction, Jacobian, measurement models, particle filter) in [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md).
-
-The EKF models the IMU's yaw reading as `theta_true + heading_bias` and the gyro reading as `omega_true + rate_bias`. Both biases are estimated as slowly-varying hidden states. GPS course-over-ground corrections allow the filter to converge on the true bias values, auto-calibrating the sensor over time.
-
-Tuning levers (in `kalman_filter_node.py`):
-- `R_pos` — GPS position trust (higher = smoother, slower to correct)
-- `R_yaw` — INS heading trust
-- `Q[3,3]` — Heading process noise (lower = more inertia)
-- `Q[4,4]` / `Q[5,5]` — How fast biases can change (very low = stable bias assumption)
-- `course_fusion_trust` — Weight given to GPS geometric heading
-
----
-
-## Bag Data
-
-Three recorded drives from a Jeep with VectorNav INS + wheel odometry:
-
-| File | Duration | Description |
-|------|----------|-------------|
-| `jeep_loca_pos_...-19-36-33.bag` | ~1 min | Short calibration run |
-| `jeep_loca_pos_...-19-40-51.bag` | ~4 min | Main test drive (default) |
-| `jeep_lostandstill_...-19-45-01.bag` | ~4 min | Stationary + lost GPS test |
-
-Topics: `/vectornav/INS` (lat, lon, yaw, velocity, uncertainty) and `/vehicle/twist` (linear/angular velocity).
